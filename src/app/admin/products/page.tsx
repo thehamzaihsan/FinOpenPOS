@@ -93,10 +93,13 @@ export default function Products() {
     setProductName("");
     setProductDescription("");
     setProductPrice(0);
+    setProductSalePrice(0);
     setProductInStock(0);
     setProductCategory("");
   };
 
+
+ 
   const handleAddProduct = useCallback(async () => {
     setLoading(true);
     try {
@@ -180,6 +183,7 @@ export default function Products() {
     productName,
     productDescription,
     productPrice,
+    productSalePrice,
     productInStock,
     productCategory,
     products,
@@ -387,6 +391,7 @@ export default function Products() {
                   <TableHead>Product</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Price</TableHead>
+                  <TableHead>Sale Price</TableHead>
                   <TableHead>Stock</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -399,6 +404,7 @@ export default function Products() {
                     </TableCell>
                     <TableCell>{product.description}</TableCell>
                     <TableCell>Rs {product.price.toFixed(2)}</TableCell>
+                    <TableCell>Rs {product.sale_price.toFixed(2)}</TableCell>
                     <TableCell>{product.in_stock}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">

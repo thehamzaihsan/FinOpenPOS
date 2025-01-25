@@ -14,7 +14,7 @@ import {
   ChartContainer,
   ChartConfig,
 } from "@/components/ui/chart";
-import { Loader2Icon, TrendingUp } from "lucide-react";
+import { Loader2Icon, TrendingUp ,   PackageIcon } from "lucide-react";
 import {
   Pie,
   PieChart,
@@ -34,6 +34,7 @@ export default function Page() {
   const [revenueByCategory, setRevenueByCategory] = useState({});
   const [expensesByCategory, setExpensesByCategory] = useState({});
   const [profitMargin, setProfitMargin] = useState([]);
+  const [totalProducts, setTotalProduct] = useState(0 || null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -46,7 +47,8 @@ export default function Page() {
           cashFlowRes,
           revenueByCategoryRes,
           expensesByCategoryRes,
-          profitMarginRes
+          profitMarginRes,
+          totalProducts,
         ] = await Promise.all([
           fetch('/api/admin/revenue/total'),
           fetch('/api/admin/expenses/total'),
@@ -54,7 +56,8 @@ export default function Page() {
           fetch('/api/admin/cashflow'),
           fetch('/api/admin/revenue/category'),
           fetch('/api/admin/expenses/category'),
-          fetch('/api/admin/profit/margin')
+          fetch('/api/admin/profit/margin'),
+          fetch('/api/admin/products/total')
         ]);
 
         const revenue = await revenueRes.json();
@@ -64,6 +67,7 @@ export default function Page() {
         const revenueByCategoryData = await revenueByCategoryRes.json();
         const expensesByCategoryData = await expensesByCategoryRes.json();
         const profitMarginData = await profitMarginRes.json();
+        const totalProductCount = await totalProducts.json();
 
         setTotalRevenue(revenue.totalRevenue);
         setTotalExpenses(expenses.totalExpenses);
@@ -72,6 +76,7 @@ export default function Page() {
         setRevenueByCategory(revenueByCategoryData.revenueByCategory);
         setExpensesByCategory(expensesByCategoryData.expensesByCategory);
         setProfitMargin(profitMarginData.profitMargin);
+        setTotalProduct(totalProductCount.count);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -80,7 +85,9 @@ export default function Page() {
     };
 
     fetchData();
+    console.log(totalProducts)
   }, []);
+
 
   if (loading) {
     return (
@@ -95,11 +102,11 @@ export default function Page() {
       <div className="grid auto-rows-max items-start gap-4 lg:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSignIcon className="w-4 h-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Products</CardTitle>
+            <PackageIcon className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalRevenue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{totalProducts || 0}</div>
           </CardContent>
         </Card>
         <Card>
