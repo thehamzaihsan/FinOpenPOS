@@ -58,6 +58,7 @@ interface Product {
   name: string;
   description: string;
   price: number;
+  sale_price: number;
   in_stock: number;
   category: string;
 }
@@ -73,14 +74,18 @@ export default function Products() {
   const [productsPerPage] = useState(10);
   const [loading, setLoading] = useState(true);
   const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(
+    null
+  );
   const [productName, setProductName] = useState("");
   const [productDescription, setProductDescription] = useState("");
   const [productPrice, setProductPrice] = useState(0);
+  const [productSalePrice, setProductSalePrice] = useState(0);
   const [productInStock, setProductInStock] = useState(0);
   const [productCategory, setProductCategory] = useState("");
   const [isEditProductDialogOpen, setIsEditProductDialogOpen] = useState(false);
-  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false);
+  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
+    useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
   const resetSelectedProduct = () => {
@@ -93,11 +98,13 @@ export default function Products() {
   };
 
   const handleAddProduct = useCallback(async () => {
+    setLoading(true);
     try {
       const newProduct = {
         name: productName,
         description: productDescription,
         price: productPrice,
+        sale_price: productSalePrice,
         in_stock: productInStock,
         category: productCategory,
       };
@@ -120,9 +127,18 @@ export default function Products() {
     } catch (error) {
       console.error("Error adding product:", error);
     }
-  }, [productName, productDescription, productPrice, productInStock, productCategory, products]);
+    setLoading(false);
+  }, [
+    productName,
+    productDescription,
+    productPrice,
+    productInStock,
+    productCategory,
+    products,
+  ]);
 
   const handleEditProduct = useCallback(async () => {
+    setLoading(true);
     if (!selectedProductId) return;
     try {
       const updatedProduct = {
@@ -130,6 +146,7 @@ export default function Products() {
         name: productName,
         description: productDescription,
         price: productPrice,
+        sale_price: productSalePrice,
         in_stock: productInStock,
         category: productCategory,
       };
@@ -143,8 +160,11 @@ export default function Products() {
 
       if (response.ok) {
         const updatedProductFromServer = await response.json();
+        console.log(updatedProductFromServer);
         setProducts(
-          products.map((p) => (p.id === updatedProductFromServer.id ? updatedProductFromServer : p))
+          products.map((p) =>
+            p.id === updatedProductFromServer.id ? updatedProductFromServer : p
+          )
         );
         setIsEditProductDialogOpen(false);
         resetSelectedProduct();
@@ -154,9 +174,19 @@ export default function Products() {
     } catch (error) {
       console.error("Error updating product:", error);
     }
-  }, [selectedProductId, productName, productDescription, productPrice, productInStock, productCategory, products]);
+    setLoading(false);
+  }, [
+    selectedProductId,
+    productName,
+    productDescription,
+    productPrice,
+    productInStock,
+    productCategory,
+    products,
+  ]);
 
   const handleDeleteProduct = useCallback(async () => {
+    setLoading(true);
     if (!productToDelete) return;
     try {
       const response = await fetch(`/api/products/${productToDelete.id}`, {
@@ -173,6 +203,7 @@ export default function Products() {
     } catch (error) {
       console.error("Error deleting product:", error);
     }
+    setLoading(false);
   }, [productToDelete, products]);
 
   useEffect(() => {
@@ -193,20 +224,34 @@ export default function Products() {
 
     fetchProducts();
   }, []);
-
+  
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
+      // Filter by category
       if (filters.category !== "all" && product.category !== filters.category) {
         return false;
       }
+
+      // Filter by stock status
+      if (filters.inStock !== "all") {
+        if (filters.inStock === "in-stock" && product.in_stock === 0) {
+          return false; // Skip if product is out of stock
+        }
+        if (filters.inStock === "out-of-stock" && product.in_stock > 0) {
+          return false; // Skip if product is in stock
+        }
+      }
+
+      // Filter by search term
       if (
-        filters.inStock !== "all" &&
-        filters.inStock === "in-stock" &&
-        product.in_stock === 0
+        searchTerm.trim() !== "" &&
+        !product.name.toLowerCase().includes(searchTerm.toLowerCase())
       ) {
         return false;
       }
-      return product.name.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // If all filters pass, include the product
+      return true;
     });
   }, [products, filters.category, filters.inStock, searchTerm]);
 
@@ -353,7 +398,7 @@ export default function Products() {
                       {product.name}
                     </TableCell>
                     <TableCell>{product.description}</TableCell>
-                    <TableCell>${product.price.toFixed(2)}</TableCell>
+                    <TableCell>Rs {product.price.toFixed(2)}</TableCell>
                     <TableCell>{product.in_stock}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -447,6 +492,18 @@ export default function Products() {
                 type="number"
                 value={productPrice}
                 onChange={(e) => setProductPrice(Number(e.target.value))}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="price" className="text-right">
+                Sale Price
+              </Label>
+              <Input
+                id="price"
+                type="number"
+                value={productSalePrice}
+                onChange={(e) => setProductSalePrice(Number(e.target.value))}
                 className="col-span-3"
               />
             </div>

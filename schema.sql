@@ -12,11 +12,11 @@ CREATE TABLE products (
     name VARCHAR(255) NOT NULL,
     description TEXT,
     price DECIMAL(10, 2) NOT NULL,
+    sale_price DECIMAL(10, 2) NOT NULL,
     in_stock INTEGER NOT NULL,
     user_uid VARCHAR(255) NOT NULL,
     category VARCHAR(50)
 );
-
 -- Create Customers table
 CREATE TABLE customers (
     id SERIAL PRIMARY KEY,
