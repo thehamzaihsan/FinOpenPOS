@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 
 export async function PUT(
   request: Request,
-  { params }: { params: { customerId: string } }
+  { params }: { params: { shopId: string } }
 ) {
   const supabase = createClient();
 
@@ -14,12 +14,12 @@ export async function PUT(
   }
 
   const updatedCustomer = await request.json();
-  const customerId = params.customerId;
-
+  const shopId = params.shopId;
+  
   const { data, error } = await supabase
-    .from('customers')
+    .from('shops')
     .update({ ...updatedCustomer, user_uid: user.id })
-    .eq('id', customerId)
+    .eq('id', shopId)
     .eq('user_uid', user.id)
     .select()
 
@@ -36,7 +36,7 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { customerId: string } }
+  { params }: { params: { shopId: string } }
 ) {
   const supabase = createClient();
 
@@ -46,12 +46,12 @@ export async function DELETE(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const customerId = params.customerId;
+  const shopId = params.shopId;
 
   const { error } = await supabase
-    .from('customers')
+    .from('shops')
     .delete()
-    .eq('id', customerId)
+    .eq('id', shopId)
     .eq('user_uid', user.id)
 
   if (error) {

@@ -11,8 +11,8 @@ export async function GET(request: Request) {
   }
 
   const { data, error } = await supabase
-    .from('customers')
-    .select('id, name')
+    .from('shops')
+    .select('id, name , Address ,  phone , owner')
     .eq('user_uid', user.id)
 
   if (error) {
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
   const newCustomer = await request.json();
 
   const { data, error } = await supabase
-    .from('customers')
+    .from('shops')
     .insert([
       { ...newCustomer, user_uid: user.id }
     ])

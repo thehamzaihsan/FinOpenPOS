@@ -18,20 +18,20 @@ CREATE TABLE products (
     category VARCHAR(50)
 );
 -- Create Customers table
-CREATE TABLE customers (
+CREATE TABLE shops(
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
     phone VARCHAR(20),
-    user_uid VARCHAR(255) NOT NULL,
-    status VARCHAR(20) CHECK (status IN ('active', 'inactive')),
+    owner VARCHAR(255),
+    Address TEXT
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
 
 -- Create Orders table
 CREATE TABLE orders (
     id SERIAL PRIMARY KEY,
-    customer_id INTEGER REFERENCES customers(id),
+    customer_id INTEGER REFERENCES shops(id),
     total_amount DECIMAL(10, 2) NOT NULL,
     user_uid VARCHAR(255) NOT NULL,
     status VARCHAR(20) CHECK (status IN ('pending', 'completed', 'cancelled')),
