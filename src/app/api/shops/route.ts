@@ -22,6 +22,8 @@ export async function GET(request: Request) {
   return NextResponse.json(data)
 }
 
+
+
 export async function POST(request: Request) {
   const supabase = createClient();
 

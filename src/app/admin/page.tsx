@@ -27,55 +27,46 @@ import {
 } from "recharts";
 
 export default function Page() {
-  const [totalRevenue, setTotalRevenue] = useState(0);
-  const [totalExpenses, setTotalExpenses] = useState(0);
-  const [totalProfit, setTotalProfit] = useState(0);
-  const [cashFlow, setCashFlow] = useState<{ date: string; amount: unknown }[]>([]);
-  const [revenueByCategory, setRevenueByCategory] = useState({});
-  const [expensesByCategory, setExpensesByCategory] = useState({});
-  const [profitMargin, setProfitMargin] = useState([]);
-  const [totalProducts, setTotalProduct] = useState(0 || null);
+  const [totalRevenue, setTotalRevenue] = useState<number | null>(0);
+  const [totalExpenses, setTotalExpenses] = useState<number | null>(0);
+  const [totalProfit, setTotalProfit] = useState<number | null>(0);
+  const [cashFlow, setCashFlow] = useState<{ date: string; amount: unknown }[] | null>([]);
+  const [revenueByCategory, setRevenueByCategory] = useState<object | null>({});
+  const [expensesByCategory, setExpensesByCategory] = useState<object | null>({});
+  const [profitMargin, setProfitMargin] = useState<any[] | null>([]);
+  const [totalProducts, setTotalProduct] = useState<number | null>(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [
-          revenueRes,
-          expensesRes,
-          profitRes,
-          cashFlowRes,
-          revenueByCategoryRes,
-          expensesByCategoryRes,
-          profitMarginRes,
+         
           totalProducts,
         ] = await Promise.all([
-          fetch('/api/admin/revenue/total'),
-          fetch('/api/admin/expenses/total'),
-          fetch('/api/admin/profit/total'),
-          fetch('/api/admin/cashflow'),
-          fetch('/api/admin/revenue/category'),
-          fetch('/api/admin/expenses/category'),
-          fetch('/api/admin/profit/margin'),
+         
           fetch('/api/admin/products/total')
         ]);
 
-        const revenue = await revenueRes.json();
-        const expenses = await expensesRes.json();
-        const profit = await profitRes.json();
-        const cashFlowData = await cashFlowRes.json();
-        const revenueByCategoryData = await revenueByCategoryRes.json();
-        const expensesByCategoryData = await expensesByCategoryRes.json();
-        const profitMarginData = await profitMarginRes.json();
+        const revenue = null;
+        const expenses = null;
+        const profit = null;
+        const cashFlowData = null;
+        const revenueByCategoryData = null;
+        const expensesByCategoryData = null;
+        const profitMarginData = null;
+
+
+        
         const totalProductCount = await totalProducts.json();
 
-        setTotalRevenue(revenue.totalRevenue);
-        setTotalExpenses(expenses.totalExpenses);
-        setTotalProfit(profit.totalProfit);
-        setCashFlow(Object.entries(cashFlowData.cashFlow).map(([date, amount]) => ({ date, amount })));
-        setRevenueByCategory(revenueByCategoryData.revenueByCategory);
-        setExpensesByCategory(expensesByCategoryData.expensesByCategory);
-        setProfitMargin(profitMarginData.profitMargin);
+        setTotalRevenue(null);
+        setTotalExpenses(null);
+        setTotalProfit(null);
+        setCashFlow(null);
+        setRevenueByCategory(null);
+        setExpensesByCategory(null);
+        setProfitMargin(null);
         setTotalProduct(totalProductCount.count);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -110,14 +101,14 @@ export default function Page() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="flex flex-row $17.00items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">
               Total Expenses
             </CardTitle>
             <DollarSignIcon className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalExpenses.toFixed(2)}</div>
+            <div className="text-2xl font-bold">${(totalExpenses || 0).toFixed(2)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -126,7 +117,7 @@ export default function Page() {
             <DollarSignIcon className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalProfit.toFixed(2)}</div>
+            <div className="text-2xl font-bold">${(totalProfit || 0).toFixed(2)}</div>
           </CardContent>
         </Card>
       </div>
@@ -139,7 +130,7 @@ export default function Page() {
             <PieChartIcon className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <PiechartcustomChart data={revenueByCategory} className="aspect-auto" />
+            {/* <PiechartcustomChart data={revenueByCategory || {}} className="aspect-auto" /> */}
           </CardContent>
         </Card>
         <Card>
@@ -150,7 +141,7 @@ export default function Page() {
             <PieChartIcon className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <PiechartcustomChart data={expensesByCategory} className="aspect-auto" />
+            {/* <PiechartcustomChart data={expensesByCategory || {}} className="aspect-auto" /> */}
           </CardContent>
         </Card>
         <Card>
@@ -159,7 +150,7 @@ export default function Page() {
             <BarChartIcon className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <BarchartChart data={profitMargin} className="aspect-auto" />
+            <BarchartChart data={profitMargin || []} className="aspect-auto" />
           </CardContent>
         </Card>
         <Card>
@@ -168,7 +159,7 @@ export default function Page() {
             <DollarSignIcon className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <LinechartChart data={cashFlow} className="aspect-auto" />
+            <LinechartChart data={cashFlow || []} className="aspect-auto" />
           </CardContent>
         </Card>
       </div>
@@ -347,4 +338,3 @@ function PiechartcustomChart({ data, ...props }: { data: Record<string, number> 
     </div>
   );
 }
-

@@ -416,6 +416,7 @@ export default function Products() {
                             setProductName(product.name);
                             setProductDescription(product.description);
                             setProductPrice(product.price);
+                            setProductSalePrice(product.sale_price);
                             setProductInStock(product.in_stock);
                             setProductCategory(product.category);
                             setIsEditProductDialogOpen(true);

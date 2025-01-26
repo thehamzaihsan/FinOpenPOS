@@ -12,21 +12,22 @@ import {
 } from "@/components/ui/table";
 import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
-
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Loader2Icon } from "lucide-react";
 type Product = {
   id: number;
   name: string;
-  price: number;
+  sale_price: number;
 };
 
-type Customer = {
+type Shops = {
   id: number;
   name: string;
-};
-
-type PaymentMethod = {
-  id: number;
-  name: string;
+  Address: string;
+  phone: string;
+  owner: string;
 };
 
 interface POSProduct extends Product {
@@ -35,19 +36,20 @@ interface POSProduct extends Product {
 
 export default function POSPage() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [shops, setShops] = useState<Shops[]>([]);
+  const [amount_paid, setAmountPaid] = useState(0);
   const [selectedProducts, setSelectedProducts] = useState<POSProduct[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedShop, setSelectedShop] = useState<Shops | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchProducts();
-    fetchCustomers();
-    fetchPaymentMethods();
+    fetchShops();
   }, []);
 
   const fetchProducts = async () => {
+    setLoading(true);
     try {
       const response = await fetch("/api/products");
       if (!response.ok) throw new Error("Failed to fetch products");
@@ -56,28 +58,22 @@ export default function POSPage() {
     } catch (error) {
       console.error("Error fetching products:", error);
     }
+    setLoading(false);
   };
 
-  const fetchCustomers = async () => {
+  const fetchShops = async () => {
+    setLoading(true);
     try {
-      const response = await fetch("/api/customers");
-      if (!response.ok) throw new Error("Failed to fetch customers");
+      const response = await fetch("/api/shops");
+      if (!response.ok) throw new Error("Failed to fetch shops");
       const data = await response.json();
-      setCustomers(data);
+      console.log(data);
+      setShops(data);
+      console.log(shops);
     } catch (error) {
-      console.error("Error fetching customers:", error);
+      console.error("Error fetching shops:", error);
     }
-  };
-
-  const fetchPaymentMethods = async () => {
-    try {
-      const response = await fetch("/api/payment-methods");
-      if (!response.ok) throw new Error("Failed to fetch payment methods");
-      const data = await response.json();
-      setPaymentMethods(data);
-    } catch (error) {
-      console.error("Error fetching payment methods:", error);
-    }
+    setLoading(false);
   };
 
   const handleSelectProduct = (productId: number | string) => {
@@ -94,17 +90,11 @@ export default function POSPage() {
     }
   };
 
-  const handleSelectCustomer = (customerId: number | string) => {
-    const customer = customers.find((c) => c.id === customerId);
-    if (customer) {
-      setSelectedCustomer(customer);
-    }
-  };
-
-  const handleSelectPaymentMethod = (paymentMethodId: number | string) => {
-    const method = paymentMethods.find((pm) => pm.id === paymentMethodId);
-    if (method) {
-      setPaymentMethod(method);
+  const handleSelectShop = (shopId: number | string) => {
+    const shop = shops.find((c) => c.id === shopId);
+    if (shop) {
+      console.log(shop);
+      setSelectedShop(shop);
     }
   };
 
@@ -121,12 +111,14 @@ export default function POSPage() {
   };
 
   const total = selectedProducts.reduce(
-    (sum, product) => sum + product.price * (product.quantity || 1),
+    (sum, product) => sum + product.sale_price * (product.quantity || 1),
     0
   );
 
   const handleCreateOrder = async () => {
-    if (!selectedCustomer || !paymentMethod || selectedProducts.length === 0) {
+    setError("");
+    setLoading(true);
+    if (!selectedShop || selectedProducts.length === 0) {
       return;
     }
 
@@ -137,28 +129,56 @@ export default function POSPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          customerId: selectedCustomer.id,
-          paymentMethodId: paymentMethod.id,
-          products: selectedProducts.map(p => ({ id: p.id, quantity: p.quantity, price: p.price })),
+          shopId: selectedShop.id,
+          amount_paid,
+          products: selectedProducts.map((p) => ({
+            id: p.id,
+            quantity: p.quantity,
+            price: p.sale_price,
+          })),
           total,
         }),
       });
 
-      if (!response.ok) throw new Error("Failed to create order");
+      // Check if the response is not OK
+      if (!response.ok) {
+        // Parse the error response to get the error message
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create order");
+      }
 
+      // Parse the successful response
       const order = await response.json();
 
       // Reset the form
       setSelectedProducts([]);
-      setSelectedCustomer(null);
-      setPaymentMethod(null);
-    } catch (error) {
-      console.error("Error creating order:", error);
+      setSelectedShop(null);
+      setAmountPaid(0);
+    } catch (error: any) {
+      console.error("Error creating order:", error.message);
+      // Optionally, display the error message to the user
+      setError(error.message);
     }
+    setLoading(false);
   };
+
+  if (loading) {
+    return (
+      <div className="h-[80vh] flex items-center justify-center">
+        <Loader2Icon className="mx-auto h-12 w-12 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-4">
+      {error.length > 0 && (
+        <Alert className="mb-4 bg-red-600 text-white">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       <Card className="mb-4">
         <CardHeader>
           <CardTitle>Sale Details</CardTitle>
@@ -166,16 +186,10 @@ export default function POSPage() {
         <CardContent className="flex gap-4">
           <div className="flex-1">
             <Combobox
-              items={customers}
-              placeholder="Select Customer"
-              onSelect={handleSelectCustomer}
-            />
-          </div>
-          <div className="flex-1">
-            <Combobox
-              items={paymentMethods}
-              placeholder="Select Payment Method"
-              onSelect={handleSelectPaymentMethod}
+              items={shops}
+              placeholder="Select Shop"
+              noSelect={selectedShop === null}
+              onSelect={handleSelectShop}
             />
           </div>
         </CardContent>
@@ -206,7 +220,7 @@ export default function POSPage() {
               {selectedProducts.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>{product.name}</TableCell>
-                  <TableCell>${product.price.toFixed(2)}</TableCell>
+                  <TableCell>${product.sale_price.toFixed(2)}</TableCell>
                   <TableCell>
                     <input
                       type="number"
@@ -222,7 +236,7 @@ export default function POSPage() {
                     />
                   </TableCell>
                   <TableCell>
-                    ${((product.quantity || 1) * product.price).toFixed(2)}
+                    ${((product.quantity || 1) * product.sale_price).toFixed(2)}
                   </TableCell>
                   <TableCell>
                     <Button
@@ -237,11 +251,26 @@ export default function POSPage() {
               ))}
             </TableBody>
           </Table>
-          <div className="mt-4 text-right">
+          <div className="mt-4 flex items-center gap-2  justify-between">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="Amount_Paid" className="text-right">
+                Amount Paid
+              </Label>
+              <Input
+                id="Amount_Paid"
+                type="number"
+                value={amount_paid}
+                onChange={(e) => setAmountPaid(Number(e.target.value))}
+                className="col-span-3"
+              ></Input>
+            </div>
             <strong>Total: ${total.toFixed(2)}</strong>
           </div>
           <div className="mt-4">
-            <Button onClick={handleCreateOrder} disabled={selectedProducts.length === 0 || !selectedCustomer || !paymentMethod}>
+            <Button
+              onClick={handleCreateOrder}
+              disabled={selectedProducts.length === 0 || !selectedShop}
+            >
               Create Order
             </Button>
           </div>

@@ -31,12 +31,15 @@ CREATE TABLE shops(
 -- Create Orders table
 CREATE TABLE orders (
     id SERIAL PRIMARY KEY,
-    customer_id INTEGER REFERENCES shops(id),
+    shop_id INTEGER REFERENCES shops(id),
     total_amount DECIMAL(10, 2) NOT NULL,
+    amount_paid DECIMAL(10, 2),
     user_uid VARCHAR(255) NOT NULL,
-    status VARCHAR(20) CHECK (status IN ('pending', 'completed', 'cancelled')),
+    status VARCHAR(20) CHECK (status IN ('full', 'pending')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+
 
 -- Create OrderItems table
 CREATE TABLE order_items (
@@ -47,25 +50,14 @@ CREATE TABLE order_items (
     price DECIMAL(10, 2) NOT NULL
 );
 
--- Create PaymentMethods table
-CREATE TABLE payment_methods (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(50) NOT NULL UNIQUE
-);
 
--- Create Transactions table
-CREATE TABLE transactions (
-    id SERIAL PRIMARY KEY,
-    description TEXT,
-    order_id INTEGER REFERENCES orders(id),
-    payment_method_id INTEGER REFERENCES payment_methods(id),
-    amount DECIMAL(10, 2) NOT NULL,
-    user_uid VARCHAR(255) NOT NULL,
-    type VARCHAR(20) CHECK (type IN ('income', 'expense')),
-    category VARCHAR(100),
-    status VARCHAR(20) CHECK (status IN ('pending', 'completed', 'failed')),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
 
--- Insert initial payment methods
-INSERT INTO payment_methods (name) VALUES ('Credit Card'), ('Debit Card'), ('Cash');
+
+
+-- Table for Khata
+CREATE TABLE Khata (
+    KhataID SERIAL PRIMARY KEY,
+    ShopID INT NOT NULL REFERENCES Shops(ShopID) ON DELETE CASCADE,
+    Balance DECIMAL(10, 2) NOT NULL, 
+    TransactionDate DATE NOT NULL DEFAULT  CURRENT_TIMESTAMP
+);
