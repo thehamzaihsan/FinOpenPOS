@@ -71,7 +71,7 @@ export default function Page() {
         setProfitMargin(null);
         setTotalProduct(totalProductCount.count);
         setTotalShops(totalShopCount.count);
-
+        setTotalOrders(totalOrderCount.count)
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
