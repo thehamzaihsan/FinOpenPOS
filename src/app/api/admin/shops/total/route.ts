@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   try {
     // Fetch the total number of products for the authenticated user
     const { count, error: fetchError } = await supabase
-      .from('products')
+      .from('shops')
       .select('*', { count: 'exact', head: true })
       .eq('user_uid', user.id);
 
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Failed to fetch products data' }, { status: 500 });
     }
 
-    // Return the counttotalExpensestotalExpenses of products
+    // Return the count of products
     return NextResponse.json({ count });
   } catch (error) {
     console.error('Unexpected error:', error);

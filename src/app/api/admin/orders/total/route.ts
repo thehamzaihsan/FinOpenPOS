@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   try {
     // Fetch the total number of products for the authenticated user
     const { count, error: fetchError } = await supabase
-      .from('products')
+      .from('orders')
       .select('*', { count: 'exact', head: true })
       .eq('user_uid', user.id);
 

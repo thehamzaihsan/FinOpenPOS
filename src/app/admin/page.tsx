@@ -27,8 +27,7 @@ import {
 } from "recharts";
 
 export default function Page() {
-  const [totalRevenue, setTotalRevenue] = useState<number | null>(0);
-  const [totalExpenses, setTotalExpenses] = useState<number | null>(0);
+
   const [totalProfit, setTotalProfit] = useState<number | null>(0);
   const [cashFlow, setCashFlow] = useState<{ date: string; amount: unknown }[] | null>([]);
   const [revenueByCategory, setRevenueByCategory] = useState<object | null>({});
@@ -36,16 +35,20 @@ export default function Page() {
   const [profitMargin, setProfitMargin] = useState<any[] | null>([]);
   const [totalProducts, setTotalProduct] = useState<number | null>(0);
   const [loading, setLoading] = useState(true);
-
+  const [totalShops, setTotalShops] = useState<number| null>(0);
+  const [totalOrders, setTotalOrders] = useState<number|null>(0);
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [
-         
+          totalShops,
           totalProducts,
+          totalOrders,
         ] = await Promise.all([
-         
-          fetch('/api/admin/products/total')
+          fetch('/api/admin/shops/total'),
+          fetch('/api/admin/products/total'),
+          fetch('/api/admin/orders/total')
+
         ]);
 
         const revenue = null;
@@ -57,17 +60,18 @@ export default function Page() {
         const profitMarginData = null;
 
 
-        
+        const totalShopCount = await totalShops.json();
         const totalProductCount = await totalProducts.json();
-
-        setTotalRevenue(null);
-        setTotalExpenses(null);
+        const totalOrderCount = await totalOrders.json();
+       
         setTotalProfit(null);
         setCashFlow(null);
         setRevenueByCategory(null);
         setExpensesByCategory(null);
         setProfitMargin(null);
         setTotalProduct(totalProductCount.count);
+        setTotalShops(totalShopCount.count);
+
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -76,7 +80,6 @@ export default function Page() {
     };
 
     fetchData();
-    console.log(totalProducts)
   }, []);
 
 
@@ -103,21 +106,21 @@ export default function Page() {
         <Card>
           <CardHeader className="flex flex-row $17.00items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">
-              Total Expenses
+              Total Shops
             </CardTitle>
             <DollarSignIcon className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${(totalExpenses || 0).toFixed(2)}</div>
+            <div className="text-2xl font-bold">{(totalShops || 0)}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Profit (selling)</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
             <DollarSignIcon className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${(totalProfit || 0).toFixed(2)}</div>
+            <div className="text-2xl font-bold">{(totalOrders || 0)}</div>
           </CardContent>
         </Card>
       </div>
