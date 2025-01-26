@@ -53,12 +53,12 @@ import Link from "next/link";
 
 type Order = {
   id: number;
-  customer_id: number;
+  shop_id: number;
   total_amount: number;
-  status: "completed" | "pending" | "cancelled";
-  created_at: string;
-  customer: {
-    name: string;
+  amont_paid: number;
+  created_at:string;
+  shop:{
+    name:string;
   };
 };
 
@@ -69,7 +69,6 @@ export default function OrdersPage() {
   const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
   const [newOrderCustomerName, setNewOrderCustomerName] = useState("");
   const [newOrderTotal, setNewOrderTotal] = useState("");
-  const [newOrderStatus, setNewOrderStatus] = useState<"completed" | "pending" | "cancelled">("pending");
   const [isEditOrderDialogOpen, setIsEditOrderDialogOpen] = useState(false);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
@@ -100,11 +99,11 @@ export default function OrdersPage() {
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
-      if (filters.status !== "all" && order.status !== filters.status) {
-        return false;
-      }
+      // if (filters.status !== "all" && order.status !== filters.status) {
+      //   return false;
+      // }
       return (
-        order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.shop.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.id.toString().includes(searchTerm)
       );
     });
@@ -114,14 +113,13 @@ export default function OrdersPage() {
     setSelectedOrderId(null);
     setNewOrderCustomerName("");
     setNewOrderTotal("");
-    setNewOrderStatus("pending");
+    
   };
 
   const handleAddOrder = useCallback(async () => {
     try {
       const newOrder = {
         total_amount: parseFloat(newOrderTotal),
-        status: newOrderStatus,
         created_at: new Date().toISOString().split('T')[0], // Current created_at in YYYY-MM-DD format
       };
       const response = await fetch("/api/orders", {
@@ -143,7 +141,7 @@ export default function OrdersPage() {
     } catch (error) {
       console.error(error);
     }
-  }, [newOrderTotal, newOrderStatus, orders]);
+  }, [newOrderTotal,  orders]);
 
   const handleEditOrder = useCallback(async () => {
     if (!selectedOrderId) return;
@@ -151,7 +149,7 @@ export default function OrdersPage() {
       const updatedOrder = {
         id: selectedOrderId,
         total_amount: parseFloat(newOrderTotal),
-        status: newOrderStatus,
+       
         created_at: orders.find(o => o.id === selectedOrderId)?.created_at, // Preserve the original created_at
       };
       const response = await fetch(`/api/orders/${selectedOrderId}`, {
@@ -173,7 +171,7 @@ export default function OrdersPage() {
     } catch (error) {
       console.error(error);
     }
-  }, [selectedOrderId, newOrderTotal, newOrderStatus, orders]);
+  }, [selectedOrderId, newOrderTotal, orders]);
 
   const handleDeleteOrder = useCallback(async () => {
     if (!orderToDelete) return;
@@ -241,7 +239,7 @@ export default function OrdersPage() {
               />
               <SearchIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             </div>
-            <DropdownMenu>
+            {/* <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-1">
                   <FilterIcon className="w-4 h-4" />
@@ -276,12 +274,12 @@ export default function OrdersPage() {
                   Cancelled
                 </DropdownMenuCheckboxItem>
               </DropdownMenuContent>
-            </DropdownMenu>
+            </DropdownMenu> */}
           </div>
-          <Button size="sm" onClick={() => setShowNewOrderDialog(true)}>
+          {/* <Button size="sm" onClick={() => setShowNewOrderDialog(true)}>
             <PlusCircle className="w-4 h-4 mr-2" />
             Create Order
-          </Button>
+          </Button> */}
         </div>
       </CardHeader>
       <CardContent className="p-0">
@@ -290,9 +288,8 @@ export default function OrdersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Order ID</TableHead>
-                <TableHead>Customer</TableHead>
+                <TableHead>Shop</TableHead>
                 <TableHead>Total</TableHead>
-                <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -301,26 +298,24 @@ export default function OrdersPage() {
               {filteredOrders.map((order) => (
                 <TableRow key={order.id}>
                   <TableCell>{order.id}</TableCell>
-                  <TableCell>{order.customer.name}</TableCell>
+                  <TableCell>{order.shop.name}</TableCell>
                   <TableCell>${order.total_amount.toFixed(2)}</TableCell>
-                  <TableCell>{order.status}</TableCell>
-                  <TableCell>{order.created_at}</TableCell>
+                  <TableCell>{new Date(order.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Button
+                      {/* <Button
                         size="icon"
                         variant="ghost"
                         onClick={() => {
                           setSelectedOrderId(order.id);
-                          setNewOrderCustomerName(order.customer.name);
+                          setNewOrderCustomerName(order.shop.name);
                           setNewOrderTotal(order.total_amount.toString());
-                          setNewOrderStatus(order.status);
                           setIsEditOrderDialogOpen(true);
                         }}
                       >
                         <FilePenIcon className="w-4 h-4" />
                         <span className="sr-only">Edit</span>
-                      </Button>
+                      </Button> */}
                       <Button
                         size="icon"
                         variant="ghost"
@@ -332,12 +327,12 @@ export default function OrdersPage() {
                         <Trash2 className="w-4 h-4" />
                         <span className="sr-only">Delete</span>
                       </Button>
-                      <Link href={`/admin/orders/${order.id}`} prefetch={false}>
+                      {/* <Link href={`/admin/orders/${order.id}`} prefetch={false}>
                         <Button size="icon" variant="ghost">
                           <EyeIcon className="w-4 h-4" />
                           <span className="sr-only">View</span>
                         </Button>
-                      </Link>
+                      </Link> */}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -387,22 +382,7 @@ export default function OrdersPage() {
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={newOrderStatus}
-                onValueChange={(value: "completed" | "pending" | "cancelled") =>
-                  setNewOrderStatus(value)
-                }
-              >
-                <SelectTrigger id="status" className="col-span-3">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
+            
             </div>
           </div>
           <DialogFooter>

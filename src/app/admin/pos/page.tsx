@@ -19,6 +19,7 @@ import { Loader2Icon } from "lucide-react";
 type Product = {
   id: number;
   name: string;
+  price:number;
   sale_price: number;
 };
 
@@ -67,9 +68,7 @@ export default function POSPage() {
       const response = await fetch("/api/shops");
       if (!response.ok) throw new Error("Failed to fetch shops");
       const data = await response.json();
-      console.log(data);
       setShops(data);
-      console.log(shops);
     } catch (error) {
       console.error("Error fetching shops:", error);
     }
@@ -115,6 +114,11 @@ export default function POSPage() {
     0
   );
 
+  const buy_total = selectedProducts.reduce(
+    (sum, product) => sum + product.price * (product.quantity || 1),
+    0
+  );
+
   const handleCreateOrder = async () => {
     setError("");
     setLoading(true);
@@ -137,6 +141,7 @@ export default function POSPage() {
             price: p.sale_price,
           })),
           total,
+          buy_total,
         }),
       });
 

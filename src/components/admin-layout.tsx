@@ -35,7 +35,7 @@ const pageNames: { [key: string]: string } = {
   "/admin/products": "Products",
   "/admin/orders": "Orders",
   "/admin/pos": "Point of Sale",
-  "/admin/cashier": "Cashier",
+  "/admin/khata": "Khata",
 };
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -109,7 +109,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link
-                    href="/admin/cashier"
+                    href="/admin/khata"
                     className={`flex h-9 w-9 items-center justify-center rounded-lg ${
                       pathname === "/admin/cashier"
                         ? "bg-accent text-accent-foreground"
@@ -117,10 +117,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     } transition-colors hover:text-foreground md:h-8 md:w-8`}
                   >
                     <DollarSignIcon className="h-5 w-5" />
-                    <span className="sr-only">Cashier</span>
+                    <span className="sr-only">Khata</span>
                   </Link>
                 </TooltipTrigger>
-                <TooltipContent side="right">Cashier</TooltipContent>
+                <TooltipContent side="right">Khata</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>

@@ -54,11 +54,22 @@ export async function DELETE(
     .from('order_items')
     .delete()
     .eq('order_id', orderId)
+    .eq('user_uid', user.id)
 
   if (orderItemsError) {
     return NextResponse.json({ error: orderItemsError.message }, { status: 500 })
   }
+  
+  // Then, delete the khata
+  const { error: khataError } = await supabase
+    .from('khata')
+    .delete()
+    .eq('order_id', orderId)
+    .eq('user_uid', user.id)
 
+  if (khataError) {
+    return NextResponse.json({ error: khataError.message }, { status: 500 })
+  }
   // Then, delete the order
   const { error: orderError } = await supabase
     .from('orders')
@@ -69,6 +80,7 @@ export async function DELETE(
   if (orderError) {
     return NextResponse.json({ error: orderError.message }, { status: 500 })
   }
+
 
   return NextResponse.json({ message: 'Order and related items deleted successfully' })
 }
