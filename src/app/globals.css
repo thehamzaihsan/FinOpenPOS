@@ -67,3 +67,16 @@
     @apply bg-background text-foreground;
   }
 }
+
+@media print{
+  .no-print{
+    display: none;
+    border:none !important;
+    width:0px;
+  }
+  body{
+    width: 1080px;
+    background: hsl( 0 0% 100% ) ;
+  }
+  
+}
