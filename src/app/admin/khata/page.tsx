@@ -240,7 +240,7 @@ export default function KhatasPage() {
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Link
-                        href={`/admin/khatas/${khata.shop_id}`}
+                        href={`/admin/khata/${khata.shop_id}`}
                         prefetch={false}
                       >
                         <Button size="icon" variant="ghost">
@@ -272,7 +272,7 @@ export default function KhatasPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{"Create New Khata"}</DialogTitle>
+            <DialogTitle>{"Clear  Khata"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
               <Combobox
@@ -305,7 +305,7 @@ export default function KhatasPage() {
               Cancel
             </Button>
             <Button onClick={handleEditKhata}>
-              {showNewKhataDialog ? "Create Khata" : "Update Khata"}
+              {showNewKhataDialog ? "Clear Khata" : "Update Khata"}
             </Button>
           </DialogFooter>
         </DialogContent>
