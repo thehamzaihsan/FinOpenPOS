@@ -276,10 +276,12 @@ export default function OrdersPage() {
               </DropdownMenuContent>
             </DropdownMenu> */}
           </div>
-          {/* <Button size="sm" onClick={() => setShowNewOrderDialog(true)}>
-            <PlusCircle className="w-4 h-4 mr-2" />
-            Create Order
-          </Button> */}
+          <Link href={"/admin/pos"}>
+            <Button size="sm">
+              <PlusCircle className="w-4 h-4 mr-2" />
+              Create Order
+            </Button>
+          </Link>
         </div>
       </CardHeader>
       <CardContent className="p-0">
@@ -327,12 +329,12 @@ export default function OrdersPage() {
                         <Trash2 className="w-4 h-4" />
                         <span className="sr-only">Delete</span>
                       </Button>
-                      {/* <Link href={`/admin/orders/${order.id}`} prefetch={false}>
+                      <Link href={`/admin/orders/${order.id}`} prefetch={false}>
                         <Button size="icon" variant="ghost">
                           <EyeIcon className="w-4 h-4" />
                           <span className="sr-only">View</span>
                         </Button>
-                      </Link> */}
+                      </Link>
                     </div>
                   </TableCell>
                 </TableRow>
