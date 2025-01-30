@@ -1,6 +1,52 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+
+
+export async function GET(
+  request: Request,
+  { params }: { params: { orderId: string } }
+) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select(`
+      id,
+      shop_id,
+      total_amount,
+      amount_paid,
+      created_at,
+      shop:shop_id (
+        name
+      ),
+      order_items:order_items (
+        id,
+        product_id,
+        quantity,
+        price,
+        product:product_id (
+          name,
+          description
+        )
+      )
+    `)
+    .eq('user_uid', user.id)
+    .eq('id', params.orderId);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(data);
+}
+
+
 export async function PUT(
   request: Request,
   { params }: { params: { orderId: string } }

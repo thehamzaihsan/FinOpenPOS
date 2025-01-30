@@ -55,7 +55,7 @@ type Order = {
   id: number;
   shop_id: number;
   total_amount: number;
-  amont_paid: number;
+  amount_paid: number;
   created_at:string;
   shop:{
     name:string;
@@ -292,6 +292,8 @@ export default function OrdersPage() {
                 <TableHead>Order ID</TableHead>
                 <TableHead>Shop</TableHead>
                 <TableHead>Total</TableHead>
+                <TableHead>Total Paid</TableHead>
+
                 <TableHead>Date</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -301,7 +303,9 @@ export default function OrdersPage() {
                 <TableRow key={order.id}>
                   <TableCell>{order.id}</TableCell>
                   <TableCell>{order.shop.name}</TableCell>
-                  <TableCell>${order.total_amount.toFixed(2)}</TableCell>
+                  <TableCell>Rs {order.total_amount.toFixed(2)}</TableCell>
+                  <TableCell>Rs {order.amount_paid}</TableCell>
+
                   <TableCell>{new Date(order.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
