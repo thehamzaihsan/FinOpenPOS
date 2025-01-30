@@ -94,7 +94,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuItem>Support</DropdownMenuItem>
+            <DropdownMenuItem><Link href={"/admin/support"} className="w-full h-full" >Support</Link></DropdownMenuItem>
             <DropdownMenuSeparator />
             <LogoutButton></LogoutButton>
           </DropdownMenuContent>
