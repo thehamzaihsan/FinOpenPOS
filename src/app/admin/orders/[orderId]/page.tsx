@@ -89,7 +89,7 @@ export default function OrderSubPage({
     order.totalPaid >= order.total ? "Fully Paid" : "Partially Paid";
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto p-4 print:p-0">
       <h1 className="text-3xl font-bold mb-6 no-print">Order Dashboard</h1>
 
       <div className="print-only flex flex-row gap-14">

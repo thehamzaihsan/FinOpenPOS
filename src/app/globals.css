@@ -78,7 +78,7 @@
   }
   body {
     margin: 0;
-    padding: 0;
+    padding: 3rem;
     font-size: 12px !important; /* Adjust font size for better readability */
     background: white !important;
   }
@@ -147,7 +147,7 @@
     margin-inline: 0  !important;
   }
   .title h1{
-     font-size: 16px;
+     font-size: 16px !important;
   }
  
 }

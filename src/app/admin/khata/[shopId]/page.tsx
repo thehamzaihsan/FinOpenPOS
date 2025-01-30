@@ -61,8 +61,8 @@ export default function ShopTransactions({
     );
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="bg-white shadow-md rounded-lg p-6 mb-6">
+    <div className="container mx-auto p-4 print:p-0 ">
+      <div className="bg-white shadow-md rounded-lg p-6 mb-6 print:p-0 ">
         <h1 className="text-2xl font-bold mb-2">
           {transactions[0]?.shops?.name}
         </h1>

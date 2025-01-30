@@ -27,11 +27,9 @@ export default function UserCard(){
         fetchProducts();
       }, []);
     
-    return <div className="print-only title ms-10 mb-2 mt-2">
+    return <div className="print-only title mb-6">
         <span><h1 className="font-bold ">{info?.name}</h1></span>
-        <br />
         <span><h1 className="font-bold ">{info?.address}</h1></span>
-        <br />
         <span><h1 className="font-bold ">{info?.phoneNumber}</h1></span>
     </div>
 }
