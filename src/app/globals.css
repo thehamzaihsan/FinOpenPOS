@@ -79,13 +79,15 @@
   body {
     margin: 0;
     padding: 0;
-    font-size: 12px; /* Adjust font size for better readability */
+    font-size: 12px !important; /* Adjust font size for better readability */
     background: white !important;
   }
+
   *{
     background:  white !important;
     box-shadow: none !important;
     border-radius: 0px !important;
+    font-size: 12px !important; /* Adjust font size for better readability */
   }
 
   table {
@@ -126,4 +128,27 @@
     padding-left: 0px !important;
   }
 
+  /* Set a fixed width for the content */
+  .print-container {
+    width: 100%;
+    max-width: 1200px; /* Adjust as needed */
+    margin: 0 auto;
+    font-size: 12px !important;
+  }
+  .print-only{
+    display: block !important;
+  }
+  .bg-card{
+    border: none !important;
+    padding: 0px !important;
+  }
+  .card-header{
+    padding-inline: 0 !important;
+    margin-inline: 0  !important;
+  }
+ 
+}
+
+.print-only{
+  display: none;
 }

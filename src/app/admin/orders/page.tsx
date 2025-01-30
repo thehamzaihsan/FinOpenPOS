@@ -225,8 +225,9 @@ export default function OrdersPage() {
   }
 
   return (
-    <Card className="flex flex-col gap-6 p-6">
-      <CardHeader className="p-0">
+    <Card  className="flex flex-col gap-6 p-6">
+      <h1 className="font-bold print-only ">All Orders</h1>
+      <CardHeader className="p-0 no-print">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="relative no-print ">

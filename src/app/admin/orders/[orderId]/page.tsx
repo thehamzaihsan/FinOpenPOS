@@ -54,11 +54,11 @@ export default function OrderSubPage({
           total: data[0].total_amount,
           totalPaid: data[0].amount_paid,
           date: data[0].created_at,
-          details: data[0].order_items.map((item:any) => ({
+          details: data[0].order_items.map((item: any) => ({
             productName: item.product.name,
             quantity: item.quantity,
-            price: item.price
-          }))
+            price: item.price,
+          })),
         });
       } catch (error) {
       } finally {
@@ -92,7 +92,34 @@ export default function OrderSubPage({
     <div className="container mx-auto p-4">
       <h1 className="text-3xl font-bold mb-6">Order Dashboard</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
+      <div className="print-only flex flex-row gap-14">
+        <div>
+            <span>
+              <h1 className="font-bold">OrderId: </h1> {order.orderId}{" "}
+            </span>
+            <br />
+            <span>
+              <h1 className="font-bold">ShopName: </h1> {order.shopName}{" "}
+            </span>
+            <br />
+            <span>
+              <h1 className="font-bold">Total Ammount: </h1>Rs {order.total}{" "}
+            </span>
+            <br />
+        </div>
+        <div>
+            <span>
+              <h1 className="font-bold">Ammount Paid: </h1>Rs {order.totalPaid}{" "}
+            </span>
+            <br />
+            <span>
+              <h1 className="font-bold">Date: </h1>{" "}
+              {new Date(order.date).toLocaleDateString()}{" "}
+            </span>
+            <br />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6 no-print">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Order ID</CardTitle>
@@ -117,7 +144,9 @@ export default function OrderSubPage({
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${order.total.toFixed(2)}</div>
+            <div className="text-2xl font-bold">
+              Rs {order.total.toFixed(2)}
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -127,7 +156,7 @@ export default function OrderSubPage({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${order.totalPaid.toFixed(2)}
+              Rs {order.totalPaid.toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               <Badge
@@ -152,10 +181,10 @@ export default function OrderSubPage({
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="card-header">
           <CardTitle>Order Details</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="card-header">
           <Table>
             <TableHeader>
               <TableRow>

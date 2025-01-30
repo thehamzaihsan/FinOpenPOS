@@ -201,7 +201,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             </TooltipProvider>
           </nav>
         </aside>
-        <main className="flex-1 p-4 sm:px-6 sm:py-0">{children}</main>
+        <main className="flex-1 p-4 sm:px-6 sm:py-0 print-container">{children}</main>
       </div>
     </div>
   );
