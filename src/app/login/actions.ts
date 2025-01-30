@@ -23,6 +23,25 @@ export async function login(formData: FormData) {
   redirect("/admin"); // Redirect on success
 }
 
+export async function logout() {
+  const supabase = createClient();
+
+  // Sign out the user
+  const { error } = await supabase.auth.signOut();
+
+  if (error) {
+    console.error("Logout error:", error);
+    return { error: error.message }; // Return the error message
+  }
+
+  // Revalidate paths (if needed)
+  revalidatePath("/admin", "layout");
+  revalidatePath("/", "layout");
+
+  // Redirect to the login page or home page
+  redirect("/login"); // Change this to your desired redirect path
+}
+
 export async function signup(formData: FormData) {
   const supabase = createClient()
 

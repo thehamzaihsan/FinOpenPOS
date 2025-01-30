@@ -30,6 +30,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { LogoutButton } from "./logoutButton";
 const pageNames: { [key: string]: string } = {
   "/admin": "Dashboard",
   "/admin/shops": "Shops",
@@ -42,6 +43,7 @@ const pageNames: { [key: string]: string } = {
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 no-print">
@@ -94,7 +96,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <DropdownMenuItem>Settings</DropdownMenuItem>
             <DropdownMenuItem>Support</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Logout</DropdownMenuItem>
+            <LogoutButton></LogoutButton>
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
