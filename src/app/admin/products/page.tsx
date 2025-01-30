@@ -98,9 +98,10 @@ export default function Products() {
     setProductCategory("");
   };
 
-
- 
   const handleAddProduct = useCallback(async () => {
+    if (productSalePrice < productPrice) {
+      return null;
+    }
     setLoading(true);
     try {
       const newProduct = {
@@ -141,6 +142,9 @@ export default function Products() {
   ]);
 
   const handleEditProduct = useCallback(async () => {
+    if (productSalePrice < productPrice) {
+      return null;
+    }
     setLoading(true);
     if (!selectedProductId) return;
     try {
@@ -228,7 +232,7 @@ export default function Products() {
 
     fetchProducts();
   }, []);
-  
+
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
       // Filter by category

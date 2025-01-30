@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { LogoutButton } from "./logoutButton";
+import UserCard from "./UserCard";
 const pageNames: { [key: string]: string } = {
   "/admin": "Dashboard",
   "/admin/shops": "Shops",
@@ -43,17 +44,16 @@ const pageNames: { [key: string]: string } = {
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 no-print">
         <div>
-          <Button variant={"ghost"} 
-          
-          onClick={()=>{
-            router.back();
-          }}
-
+          <Button
+            variant={"ghost"}
+            onClick={() => {
+              router.back();
+            }}
           >
             <ArrowLeft></ArrowLeft>
           </Button>
@@ -93,8 +93,16 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuItem><Link href={"/admin/support"} className="w-full h-full" >Support</Link></DropdownMenuItem>
+            <DropdownMenuItem>
+              <Link href={"/admin/settings"} className="w-full h-full">
+                Settings
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Link href={"/admin/support"} className="w-full h-full">
+                Support
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <LogoutButton></LogoutButton>
           </DropdownMenuContent>
@@ -203,7 +211,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             </TooltipProvider>
           </nav>
         </aside>
-        <main className="flex-1 p-4 sm:px-6 sm:py-0 print-container">{children}</main>
+        <main className="flex-1 p-4 sm:px-6 sm:py-0 print-container">
+          <UserCard></UserCard>
+          {children}
+        </main>
       </div>
     </div>
   );

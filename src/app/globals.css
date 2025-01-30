@@ -146,6 +146,9 @@
     padding-inline: 0 !important;
     margin-inline: 0  !important;
   }
+  .title h1{
+     font-size: 16px;
+  }
  
 }
 
