@@ -229,7 +229,7 @@ export default function OrdersPage() {
       <CardHeader className="p-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="relative">
+            <div className="relative no-print ">
               <Input
                 type="text"
                 placeholder="Search orders..."
@@ -295,7 +295,7 @@ export default function OrdersPage() {
                 <TableHead>Total Paid</TableHead>
 
                 <TableHead>Date</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead className="no-print">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -307,7 +307,7 @@ export default function OrdersPage() {
                   <TableCell>Rs {order.amount_paid}</TableCell>
 
                   <TableCell>{new Date(order.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</TableCell>
-                  <TableCell>
+                  <TableCell className="no-print">
                     <div className="flex items-center gap-2">
                       {/* <Button
                         size="icon"
@@ -431,6 +431,16 @@ export default function OrdersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <div className="w-full flex justify-end no-print">
+        <Button
+          className="mt-10"
+          onClick={() => {
+            window.print();
+          }}
+        >
+          Print
+        </Button>
+      </div>
     </Card>
   );
 }

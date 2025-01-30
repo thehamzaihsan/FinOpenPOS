@@ -98,7 +98,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
-      <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14 ">
+      <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14 print-center">
         <aside className="fixed mt-[56px] inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex no-print">
           <nav className="flex flex-col items-center gap-4 px-2 sm:py-5 no-print">
             <TooltipProvider>

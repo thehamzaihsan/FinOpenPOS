@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Package, Store, DollarSign, Calendar, CreditCard } from "lucide-react";
 import { Separator } from "@/components/ui/seperator";
+import { Button } from "@/components/ui/button";
 
 interface OrderDetail {
   productName: string;
@@ -184,6 +185,16 @@ export default function OrderSubPage({
           </div>
         </CardContent>
       </Card>
+      <div className="w-full flex justify-end no-print">
+        <Button
+          className="mt-10"
+          onClick={() => {
+            window.print();
+          }}
+        >
+          Print
+        </Button>
+      </div>
     </div>
   );
 }
