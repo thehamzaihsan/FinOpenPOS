@@ -17,7 +17,7 @@ export default function LoginPage() {
       <div className="mx-auto w-full max-w-md space-y-6">
         <div className="flex flex-col items-center space-y-2">
           <MountainIcon className="h-10 w-10" />
-          <h2 className="text-2xl font-bold">Welcome back</h2>
+          <h2 className="text-2xl font-bold">Inventory Management System</h2>
           <p className="text-muted-foreground">
             Enter your email and password to sign in.
           </p>
@@ -34,16 +34,9 @@ export default function LoginPage() {
                 <Input id="password" name="password"  type="password" />
               </div>
             </CardContent>
-            <CardFooter className="flex justify-between">
-              <Link
-                href="#"
-                className="text-sm text-muted-foreground"
-                prefetch={false}
-              >
-                Forgot password?
-              </Link>
-              <Button formAction={login}>Log in</Button>
-              <Button formAction={signup}>Sign up</Button>
+            <CardFooter className="flex justify-between w-full">
+             
+              <Button  formAction={login} className="w-full">Log in</Button>
             </CardFooter>
           </form>
         </Card>

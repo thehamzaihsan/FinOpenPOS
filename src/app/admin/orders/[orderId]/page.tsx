@@ -199,9 +199,9 @@ export default function OrderSubPage({
                 <TableRow key={index}>
                   <TableCell>{item.productName}</TableCell>
                   <TableCell>{item.quantity}</TableCell>
-                  <TableCell>${item.price.toFixed(2)}</TableCell>
+                  <TableCell>Rs {item.price.toFixed(2)}</TableCell>
                   <TableCell>
-                    ${(item.quantity * item.price).toFixed(2)}
+                    Rs {(item.quantity * item.price).toFixed(2)}
                   </TableCell>
                 </TableRow>
               ))}

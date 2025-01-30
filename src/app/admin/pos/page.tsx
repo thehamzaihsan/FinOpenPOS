@@ -225,7 +225,7 @@ export default function POSPage() {
               {selectedProducts.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>{product.name}</TableCell>
-                  <TableCell>${product.sale_price.toFixed(2)}</TableCell>
+                  <TableCell>Rs {product.sale_price.toFixed(2)}</TableCell>
                   <TableCell>
                     <input
                       type="number"
@@ -241,7 +241,7 @@ export default function POSPage() {
                     />
                   </TableCell>
                   <TableCell>
-                    ${((product.quantity || 1) * product.sale_price).toFixed(2)}
+                    Rs {((product.quantity || 1) * product.sale_price).toFixed(2)}
                   </TableCell>
                   <TableCell>
                     <Button
@@ -269,7 +269,7 @@ export default function POSPage() {
                 className="col-span-3"
               ></Input>
             </div>
-            <strong>Total: ${total.toFixed(2)}</strong>
+            <strong>Total: Rs {total.toFixed(2)}</strong>
           </div>
           <div className="mt-4">
             <Button

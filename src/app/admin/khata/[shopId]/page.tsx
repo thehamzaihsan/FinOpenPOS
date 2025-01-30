@@ -75,7 +75,7 @@ export default function ShopTransactions({
                 : "text-red-600"
             }
           >
-            ${transactions[0]?.total_balance.toFixed(2)}
+            Rs {transactions[0]?.total_balance.toFixed(2)}
           </span>
         </p>
       </div>
@@ -99,7 +99,7 @@ export default function ShopTransactions({
                     transaction.balance >= 0 ? "text-green-600" : "text-red-600"
                   }
                 >
-                  ${transaction.balance.toFixed(2)}
+                  Rs {transaction.balance.toFixed(2)}
                 </TableCell>
                 <TableCell>{transaction.order_id || "N/A"}</TableCell>
                 <TableCell>
