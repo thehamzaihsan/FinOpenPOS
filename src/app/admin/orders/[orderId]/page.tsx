@@ -86,11 +86,11 @@ export default function OrderSubPage({
   }
 
   const paymentStatus =
-    order.totalPaid >= order.total ? "Paid" : "Partially Paid";
+    order.totalPaid >= order.total ? "Fully Paid" : "Partially Paid";
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-6">Order Dashboard</h1>
+      <h1 className="text-3xl font-bold mb-6 no-print">Order Dashboard</h1>
 
       <div className="print-only flex flex-row gap-14">
         <div>
@@ -110,6 +110,7 @@ export default function OrderSubPage({
         <div>
             <span>
               <h1 className="font-bold">Ammount Paid: </h1>Rs {order.totalPaid}{" "}
+              {paymentStatus}
             </span>
             <br />
             <span>
@@ -160,7 +161,7 @@ export default function OrderSubPage({
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               <Badge
-                variant={paymentStatus === "Paid" ? "default" : "secondary"}
+                variant={paymentStatus === "Fully Paid" ? "default" : "secondary"}
               >
                 {paymentStatus}
               </Badge>
