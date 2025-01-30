@@ -1,17 +1,42 @@
-import { signup, login } from "./actions";
-/**
- * v0 by Vercel.
- * @see https://v0.dev/t/y71wwxpKfsO
- * Documentation: https://v0.dev/docs#integrating-generated-code-into-your-nextjs-app
- */
+"use client";
+
+import { login } from "./actions";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { MountainIcon } from "lucide-react";
+import { Loader2Icon, MountainIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const supabase = createClient();
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const checkUser = async () => {
+      setLoading(true);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        router.push("/admin");
+      } else {
+        setLoading(false);
+      }
+    };
+    checkUser();
+  }, [router, supabase.auth]);
+
+  if (loading) {
+    return (
+      <div className="h-[80vh] flex items-center justify-center">
+        <Loader2Icon className="mx-auto h-12 w-12 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background">
       <div className="mx-auto w-full max-w-md space-y-6">
@@ -27,16 +52,22 @@ export default function LoginPage() {
             <CardContent className="space-y-4 mt-4">
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" name="email"  type="email" placeholder="name@example.com" />
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="name@example.com"
+                />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" name="password"  type="password" />
+                <Input id="password" name="password" type="password" />
               </div>
             </CardContent>
             <CardFooter className="flex justify-between w-full">
-             
-              <Button  formAction={login} className="w-full">Log in</Button>
+              <Button formAction={login} className="w-full">
+                Log in
+              </Button>
             </CardFooter>
           </form>
         </Card>
