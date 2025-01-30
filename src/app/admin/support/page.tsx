@@ -66,7 +66,7 @@ export default function SupportPage() {
               height={200}
               className="mb-4"
             />
-            <p className="text-sm text-center mb-2">Scan this QR code with your phone's camera to open WhatsApp</p>
+            <p className="text-sm text-center mb-2">Scan this QR code with your phone camera to open WhatsApp</p>
             <p className="text-sm text-center mb-2">+{whatsappNumber}</p>
           </CardContent>
           <CardFooter>
