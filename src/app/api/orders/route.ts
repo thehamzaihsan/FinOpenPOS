@@ -23,7 +23,8 @@ export async function GET(request: Request) {
       )
       `)
     .eq('user_uid', user.id)
-
+    .order('id', { ascending: true }); 
+    
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

@@ -104,7 +104,7 @@ export default function Page() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row $17.00items-center justify-between pb-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">
               Total Shops
             </CardTitle>

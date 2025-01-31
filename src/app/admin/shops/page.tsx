@@ -260,7 +260,7 @@ export default function ShopsPage() {
                 <TableHead>Name</TableHead>
                 <TableHead>Owner</TableHead>
                 <TableHead>Phone</TableHead>
-                <TableHead>Address$17.00</TableHead>
+                <TableHead>Address</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>

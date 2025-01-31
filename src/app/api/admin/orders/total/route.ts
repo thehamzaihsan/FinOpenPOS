@@ -17,7 +17,7 @@ export async function GET(request: Request) {
       .from('orders')
       .select('*', { count: 'exact', head: true })
       .eq('user_uid', user.id);
-
+    
     if (fetchError) {
       console.error('Error fetching total products:', fetchError);
       return NextResponse.json({ error: 'Failed to fetch products data' }, { status: 500 });

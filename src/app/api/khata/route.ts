@@ -15,8 +15,9 @@ export async function GET(request: Request) {
     const { data, error } = await supabase
       .from('shop_balances')
       .select('*')
-      .eq('user_uid', user.id); // Filter by the current user's ID
-
+      .eq('user_uid', user.id) // Filter by the current user's ID
+      .order('shop_id', { ascending: true }); // Sort by order_id in ascending order
+      
     if (error) {
       throw error;
     }
