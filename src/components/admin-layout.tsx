@@ -98,11 +98,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 Settings
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            {/* <DropdownMenuItem>
               <Link href={"/admin/support"} className="w-full h-full">
                 Support
               </Link>
-            </DropdownMenuItem>
+            </DropdownMenuItem> */}
             <DropdownMenuSeparator />
             <LogoutButton></LogoutButton>
           </DropdownMenuContent>
