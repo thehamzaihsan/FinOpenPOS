@@ -55,7 +55,7 @@ export default function LoginPage() {
       <div className="mx-auto w-full max-w-md space-y-6">
         <div className="flex flex-col items-center space-y-2">
           <MountainIcon className="h-10 w-10" />
-          <h2 className="text-2xl font-bold">Inventory Management System</h2>
+          <h2 className="text-2xl font-bold">Smart Khata App</h2>
           <p className="text-muted-foreground">
             Enter your email and password to sign in.
           </p>
