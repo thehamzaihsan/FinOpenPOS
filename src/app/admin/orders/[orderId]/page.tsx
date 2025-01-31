@@ -211,7 +211,7 @@ export default function OrderSubPage({
           <Separator className="my-4" />
           <div className="flex justify-between items-center">
             <p className="font-semibold">Total:</p>
-            <p className="font-bold text-lg">${order.total.toFixed(2)}</p>
+            <p className="font-bold text-lg">Rs {order.total.toFixed(2)}</p>
           </div>
         </CardContent>
       </Card>
