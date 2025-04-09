@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Analyt from "@/components/Analytics";
+
 const inter = Inter({ subsets: ["latin"] });
 //Import Mixpanel SDK
 
