@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-
+import Analyt from "@/components/Analytics";
 const inter = Inter({ subsets: ["latin"] });
+//Import Mixpanel SDK
 
 export const metadata: Metadata = {
   title: "Smart Khata App",
@@ -16,6 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <Analyt></Analyt>
       <body className={inter.className}>
         <main>{children}</main>
       </body>
