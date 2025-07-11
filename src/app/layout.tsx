@@ -4,7 +4,6 @@ import "./globals.css";
 import Analyt from "@/components/Analytics";
 
 const inter = Inter({ subsets: ["latin"] });
-//Import Mixpanel SDK
 
 export const metadata: Metadata = {
   title: "Smart Khata App",
@@ -20,7 +19,18 @@ export default function RootLayout({
     <html lang="en">
       <Analyt></Analyt>
       <body className={inter.className}>
-        <main>{children}</main>
+        <main className="h-[95vh]">{children}</main>
+        <footer className="text-center text-gray-500 text-xs h-[5vh]">
+          &copy; {new Date().getFullYear()}<a 
+            href="https://hamzaihsan.me" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="text-blue-500 hover:underline ml-2"
+          >
+            Hamza Ihsan
+          </a>. All rights reserved. 
+       
+        </footer>
       </body>
     </html>
   );
