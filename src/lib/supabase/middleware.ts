@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-
+import { getUserRoles } from './roles'
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -46,6 +46,15 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+
+  // else if(user){
+  //   const role = await getUserRoles(user.id);
+  //   if(role[0]=="salesman"){
+  //     const url = request.nextUrl.clone()
+  //     url.pathname = '/salesman'
+  //     return NextResponse.redirect(url)
+  //   }
+  // }
   // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're
   // creating a new response object with NextResponse.next() make sure to:
   // 1. Pass the request in it, like so:

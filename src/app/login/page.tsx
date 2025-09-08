@@ -24,7 +24,7 @@ export default function LoginPage() {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        router.push("/admin");
+        router.push("/salesman");
       } else {
         setLoading(false);
       }

@@ -8,7 +8,7 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    router.push("/admin");
+    router.push("/salesman");
   }, [router]);
 
   return null;
