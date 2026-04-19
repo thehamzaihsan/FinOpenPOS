@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,10 +15,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const customerId = searchParams.get('customerId');
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabase = await createClient();
 
     let query = supabase
       .from('orders')
@@ -75,6 +72,7 @@ export async function POST(request: NextRequest) {
       status,
       is_khata,
       notes,
+      items,
     } = body;
 
     // Validate required fields
@@ -92,10 +90,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabase = await createClient();
+
+    // Verify auth since RLS requires it
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     // Determine order status
     let orderStatus = status || (amount_paid >= total_amount ? 'paid' : 'partial');
@@ -130,6 +131,30 @@ export async function POST(request: NextRequest) {
     if (orderError) {
       console.error('Order creation error:', orderError);
       return NextResponse.json({ error: orderError.message }, { status: 500 });
+    }
+
+    // If items are provided, insert them directly!
+    if (items && Array.isArray(items) && items.length > 0) {
+      const orderItems = items.map((item: any) => ({
+        order_id: order.id,
+        product_id: item.product_id || null,
+        product_variant_id: item.product_variant_id || null,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        discount_pct: item.discount_pct || 0,
+        discount_amount: item.discount_amount || 0,
+        line_total: item.line_total || 0,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) {
+        console.error('Order items creation error:', itemsError);
+        // It's a partial failure, but we return the error
+        return NextResponse.json({ error: itemsError.message }, { status: 500 });
+      }
     }
 
     return NextResponse.json(

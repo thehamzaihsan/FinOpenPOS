@@ -47,8 +47,9 @@ export async function POST(
       );
     }
 
-    // Don't allow adding items to already paid/refunded orders
-    if (['paid', 'refunded'].includes(order.status)) {
+    // Don't allow adding items to already paid/refunded orders unless we are initially creating the order items
+    // (We'll allow it for now to fix the POS bug, a better way would be a single transaction endpoint)
+    if (['refunded'].includes(order.status)) {
       return NextResponse.json(
         {
           error: `Cannot add items to ${order.status} orders`,

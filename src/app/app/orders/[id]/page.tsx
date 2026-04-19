@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getSupabaseClient } from "@/lib/supabase-client";
 import { ArrowLeft, Printer, Download, AlertCircle } from "lucide-react";
 import Link from "next/link";
 
@@ -46,64 +45,61 @@ export default function OrderDetailPage() {
  const [refunding, setRefunding] = useState(false);
  const [showRefundModal, setShowRefundModal] = useState(false);
  const [refundType, setRefundType] = useState<"full" | "partial">("full");
- const [refundAmount, setRefundAmount] = useState(0);
+  const [refundAmount, setRefundAmount] = useState(0);
 
- const supabase = getSupabaseClient();
-
- useEffect(() => {
-  loadOrderData();
- }, [orderId]);
-
- const loadOrderData = async () => {
-  try {
-   const [orderRes, itemsRes] = await Promise.all([
-    supabase
-     .from("orders")
-     .select("*, customers(*)")
-     .eq("id", orderId)
-     .single(),
-    supabase.from("order_items").select("*").eq("order_id", orderId),
-   ]);
-
-   if (orderRes.error) throw orderRes.error;
-   setOrder(orderRes.data);
-   setItems(itemsRes.data || []);
-   setLoading(false);
-  } catch (error) {
-   console.error("Failed to load order:", error);
-   setLoading(false);
-  }
- };
-
- const handleRefund = async () => {
-  if (!order) return;
-
-  setRefunding(true);
-  try {
-   const refundAmountToProcess = refundType === "full" ? order.amount_paid : refundAmount;
-
-   // @ts-ignore - Supabase type issue
-   const { error } = await supabase
-    .from("orders")
-    .update({
-     status: refundType === "full" ? "refunded" : "partial_refund",
-     amount_paid: order.amount_paid - refundAmountToProcess,
-     balance_due: order.balance_due + refundAmountToProcess,
-    })
-    .eq("id", orderId);
-
-   if (error) throw error;
-
-   setShowRefundModal(false);
+  useEffect(() => {
    loadOrderData();
-   alert("Refund processed successfully");
-  } catch (error) {
-   console.error("Failed to process refund:", error);
-   alert("Failed to process refund");
-  } finally {
-   setRefunding(false);
-  }
- };
+  }, [orderId]);
+
+  const loadOrderData = async () => {
+   try {
+    const response = await fetch(`/api/orders/${orderId}`);
+    
+    if (!response.ok) {
+     throw new Error("Failed to load order");
+    }
+
+    const { data: order } = await response.json();
+    setOrder(order);
+    setItems(order.items || []);
+    setLoading(false);
+   } catch (error) {
+    console.error("Failed to load order:", error);
+    setLoading(false);
+   }
+  };
+
+  const handleRefund = async () => {
+   if (!order) return;
+
+   setRefunding(true);
+   try {
+    const refundAmountToProcess = refundType === "full" ? order.amount_paid : refundAmount;
+
+    const response = await fetch(`/api/orders/${orderId}/refund`, {
+     method: "POST",
+     headers: { "Content-Type": "application/json" },
+     body: JSON.stringify({
+      refund_amount: refundAmountToProcess,
+      reason: refundType === "full" ? "Full refund" : "Partial refund",
+     }),
+    });
+
+    if (!response.ok) {
+     const error = await response.json();
+     throw new Error(error.error || "Failed to process refund");
+    }
+
+    setShowRefundModal(false);
+    loadOrderData();
+    alert("Refund processed successfully");
+   } catch (error) {
+    console.error("Failed to process refund:", error);
+    alert(`Failed to process refund: ${error instanceof Error ? error.message : "Unknown error"}`);
+   } finally {
+    setRefunding(false);
+   }
+  };
 
   const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
   const totalDiscount = items.reduce(
