@@ -3,9 +3,10 @@ import { NextResponse } from 'next/server'
 
 export async function PUT(
   request: Request,
-  { params }: { params: { shopId: string } }
+  { params }: { params: Promise<{ shopId: string }> }
 ) {
-  const supabase = createClient();
+  const supabase = await createClient();
+  const { shopId } = await params;
 
   const { data: { user } } = await supabase.auth.getUser();
   
@@ -14,7 +15,6 @@ export async function PUT(
   }
 
   const updatedCustomer = await request.json();
-  const shopId = params.shopId;
   
   const { data, error } = await supabase
     .from('shops')
@@ -36,17 +36,16 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { shopId: string } }
+  { params }: { params: Promise<{ shopId: string }> }
 ) {
-  const supabase = createClient();
+  const supabase = await createClient();
+  const { shopId } = await params;
 
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-
-  const shopId = params.shopId;
 
   const { error } = await supabase
     .from('shops')

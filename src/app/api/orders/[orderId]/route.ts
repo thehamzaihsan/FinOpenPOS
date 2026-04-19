@@ -5,9 +5,10 @@ import { NextResponse } from 'next/server'
 
 export async function GET(
   request: Request,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
-  const supabase = createClient();
+  const supabase = await createClient();
+  const { orderId } = await params;
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -37,7 +38,7 @@ export async function GET(
       )
     `)
     .eq('user_uid', user.id)
-    .eq('id', params.orderId);
+    .eq('id', orderId);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -49,9 +50,10 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
-  const supabase = createClient();
+  const supabase = await createClient();
+  const { orderId } = await params;
 
   const { data: { user } } = await supabase.auth.getUser();
   
@@ -60,7 +62,6 @@ export async function PUT(
   }
 
   const updatedOrder = await request.json();
-  const orderId = params.orderId;
 
   const { data, error } = await supabase
     .from('orders')
@@ -83,17 +84,16 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
-  const supabase = createClient();
+  const supabase = await createClient();
+  const { orderId } = await params;
 
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-
-  const orderId = params.orderId;
 
   // First, delete related order_items
   const { error: orderItemsError } = await supabase

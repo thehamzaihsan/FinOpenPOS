@@ -4,8 +4,9 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
+
 export async function login(formData: FormData) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const data = {
     email: formData.get("email") as string,
@@ -19,12 +20,12 @@ export async function login(formData: FormData) {
     return { error: error.message }; // Return the error message
   }
 
-  revalidatePath("/admin", "layout");
-  redirect("/admin"); // Redirect on success
+  revalidatePath("/salesman", "layout");
+  redirect("/salesman"); // Redirect on success
 }
 
 export async function logout() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Sign out the user
   const { error } = await supabase.auth.signOut();
@@ -35,7 +36,7 @@ export async function logout() {
   }
 
   // Revalidate paths (if needed)
-  revalidatePath("/admin", "layout");
+  revalidatePath("/salesman", "layout");
   revalidatePath("/", "layout");
 
   // Redirect to the login page or home page
@@ -43,7 +44,7 @@ export async function logout() {
 }
 
 export async function signup(formData: FormData) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // type-casting here for convenience
   // in practice, you should validate your inputs
@@ -59,10 +60,11 @@ export async function signup(formData: FormData) {
     redirect('/error')
   }
 
-  revalidatePath('/admin', 'layout')
-  redirect('/admin')
+  revalidatePath('/salesman', 'layout')
+  redirect('/salesman')
 }
 
 export async function generateExampleData(user_uid: string) {
-  const supabase = createClient()
+  const supabase = await createClient()
+  // TODO: Implement example data generation
 }

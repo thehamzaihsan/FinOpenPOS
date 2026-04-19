@@ -3,9 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function GET(
   request: Request,
-  { params }: { params: { shopId: string } }
+  { params }: { params: Promise<{ shopId: string }> }
 ) {
-  const supabase = createClient();
+  const supabase = await createClient();
+  const { shopId } = await params;
 
   // Authenticate the user
   const {
@@ -28,7 +29,7 @@ export async function GET(
   `
       )
       .eq("user_uid", user.id)
-      .eq("shop_id", params.shopId);
+      .eq("shop_id", shopId);
 
     if (khataError) {
       console.error("Error fetching khata data:", khataError);
@@ -37,7 +38,7 @@ export async function GET(
     const { data: balanceData, error: balanceError } = await supabase
       .from("shop_balances")
       .select("total_balance")
-      .eq("shop_id", params.shopId);
+      .eq("shop_id", shopId);
 
     if (balanceError) {
       console.error("Error fetching balance data:", balanceError);
