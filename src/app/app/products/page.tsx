@@ -3,9 +3,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { getSupabaseClient } from "@/lib/supabase-client";
 import { dataService } from "@/lib/data-service";
-import { Plus, Edit2, Trash2, Search, Upload, RefreshCw } from "lucide-react";
+import { Plus, Edit2, Search, Upload, RefreshCw } from "lucide-react";
 
 export default function ProductsPage() {
  const [products, setProducts] = useState<any[]>([]);
@@ -13,7 +12,6 @@ export default function ProductsPage() {
  const [loading, setLoading] = useState(true);
  const [searchQuery, setSearchQuery] = useState("");
  const [currentPage, setCurrentPage] = useState(1);
- const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
  const [showFilters, setShowFilters] = useState(false);
  const [minPrice, setMinPrice] = useState<number>(0);
  const [maxPrice, setMaxPrice] = useState<number>(100000);
@@ -24,7 +22,6 @@ export default function ProductsPage() {
  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
  
  const itemsPerPage = 10;
- const supabase = getSupabaseClient();
 
  useEffect(() => {
   loadProducts();
@@ -59,27 +56,6 @@ export default function ProductsPage() {
   setFilteredProducts(filtered);
   setCurrentPage(1);
  };
-
-  const handleDelete = async (productId: string) => {
-   try {
-    const response = await fetch(`/api/products/${productId}`, {
-     method: 'DELETE',
-    });
-
-    if (!response.ok) {
-     const error = await response.json();
-     throw new Error(error.error || 'Failed to delete product');
-    }
-
-    // Invalidate cache and reload
-    dataService.invalidateProductsCache();
-    loadProducts(true);
-    setShowDeleteConfirm(null);
-   } catch (error) {
-    console.error("Failed to delete product:", error);
-    alert(`Failed to delete product: ${error instanceof Error ? error.message : 'Unknown error'}`);
-   }
-  };
 
  const startIdx = (currentPage - 1) * itemsPerPage;
  const paginatedProducts = filteredProducts.slice(
@@ -166,47 +142,39 @@ export default function ProductsPage() {
         </th>
        </tr>
       </thead>
-      <tbody className="divide-y divide-gray-200">
-       {paginatedProducts.length === 0 ? (
-        <tr>
-         <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-          No products found
-         </td>
-        </tr>
-       ) : (
-        paginatedProducts.map((product) => (
-         <tr key={product.id} className="hover:bg-gray-50 transition-colors">
-          <td className="px-6 py-4 font-medium text-gray-900">
-           {product.name}
+       <tbody className="divide-y divide-gray-200">
+        {paginatedProducts.length === 0 ? (
+         <tr>
+          <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+           No products found
           </td>
-          <td className="px-6 py-4 text-gray-700">{product.item_code}</td>
-          <td className="px-6 py-4 text-gray-900">
-           PKR {product.sale_price}
-          </td>
-          <td className="px-6 py-4 text-gray-700">{product.quantity}</td>
-          <td className="px-6 py-4 text-gray-700 capitalize">
-           {product.unit}
-          </td>
-          <td className="px-6 py-4">
-           <div className="flex gap-2">
+         </tr>
+        ) : (
+         paginatedProducts.map((product) => (
+          <tr key={product.id} className="hover:bg-gray-50 transition-colors">
+           <td className="px-6 py-4 font-medium text-gray-900">
+            {product.name}
+           </td>
+           <td className="px-6 py-4 text-gray-700">{product.item_code}</td>
+           <td className="px-6 py-4 text-gray-900">
+            PKR {product.sale_price}
+           </td>
+           <td className="px-6 py-4 text-gray-700">{product.quantity}</td>
+           <td className="px-6 py-4 text-gray-700 capitalize">
+            {product.unit}
+           </td>
+           <td className="px-6 py-4">
             <Link
              href={`/app/products/${product.id}/edit`}
              className="text-blue-600 hover:text-blue-700 p-1"
             >
              <Edit2 className="w-4 h-4" />
             </Link>
-            <button
-             onClick={() => setShowDeleteConfirm(product.id)}
-             className="text-red-600 hover:text-red-700 p-1"
-            >
-             <Trash2 className="w-4 h-4" />
-            </button>
-           </div>
-          </td>
-         </tr>
-        ))
-       )}
-      </tbody>
+           </td>
+          </tr>
+         ))
+        )}
+       </tbody>
      </table>
     </div>
 
@@ -234,34 +202,8 @@ export default function ProductsPage() {
        </button>
       </div>
      </div>
-    )}
-   </div>
-
-   {/* Delete Confirmation Modal */}
-   {showDeleteConfirm && (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-     <div className="bg-white p-6 w-96 space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900">Delete Product?</h3>
-      <p className="text-gray-600">
-       Are you sure you want to delete this product? This action cannot be undone.
-      </p>
-      <div className="flex gap-3">
-       <button
-        onClick={() => setShowDeleteConfirm(null)}
-        className="flex-1 border border-gray-300 py-2 hover:bg-gray-50"
-       >
-        Cancel
-       </button>
-       <button
-        onClick={() => handleDelete(showDeleteConfirm)}
-        className="flex-1 bg-red-600 text-white py-2 hover:bg-red-700"
-       >
-        Delete
-       </button>
-      </div>
-     </div>
+     )}
     </div>
-   )}
-  </div>
- );
+   </div>
+  );
 }
