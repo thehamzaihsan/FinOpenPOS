@@ -351,6 +351,11 @@ CREATE POLICY "salesman_view_customers" ON customers
         (SELECT role FROM users WHERE id = auth.uid()) IN ('admin', 'salesman')
     );
 
+CREATE POLICY "salesman_insert_customers" ON customers
+    FOR INSERT WITH CHECK (
+        (SELECT role FROM users WHERE id = auth.uid()) IN ('admin', 'salesman')
+    );
+
 CREATE POLICY "admins_all_products" ON products
     FOR ALL USING (
         (SELECT role FROM users WHERE id = auth.uid()) = 'admin'
@@ -366,8 +371,39 @@ CREATE POLICY "admins_all_orders" ON orders
         (SELECT role FROM users WHERE id = auth.uid()) = 'admin'
     );
 
+CREATE POLICY "salesman_insert_orders" ON orders
+    FOR INSERT WITH CHECK (
+        (SELECT role FROM users WHERE id = auth.uid()) IN ('admin', 'salesman')
+    );
+
 CREATE POLICY "salesman_view_orders" ON orders
     FOR SELECT USING (
+        (SELECT role FROM users WHERE id = auth.uid()) IN ('admin', 'salesman')
+    );
+
+CREATE POLICY "salesman_update_orders" ON orders
+    FOR UPDATE USING (
+        (SELECT role FROM users WHERE id = auth.uid()) IN ('admin', 'salesman')
+    );
+
+-- Order items policies
+CREATE POLICY "admins_all_order_items" ON order_items
+    FOR ALL USING (
+        (SELECT role FROM users WHERE id = auth.uid()) = 'admin'
+    );
+
+CREATE POLICY "salesman_insert_order_items" ON order_items
+    FOR INSERT WITH CHECK (
+        (SELECT role FROM users WHERE id = auth.uid()) IN ('admin', 'salesman')
+    );
+
+CREATE POLICY "salesman_view_order_items" ON order_items
+    FOR SELECT USING (
+        (SELECT role FROM users WHERE id = auth.uid()) IN ('admin', 'salesman')
+    );
+
+CREATE POLICY "salesman_update_order_items" ON order_items
+    FOR UPDATE USING (
         (SELECT role FROM users WHERE id = auth.uid()) IN ('admin', 'salesman')
     );
 

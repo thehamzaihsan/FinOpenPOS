@@ -1,8 +1,8 @@
 import { createClient } from "./server";
 
-const supabase = createClient();
 // Get all roles for a user
 export async function getUserRoles(userId: string): Promise<string[]> {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('user_roles')
     .select('role')
@@ -18,6 +18,7 @@ export async function getUserRoles(userId: string): Promise<string[]> {
 
 // Check if user has a specific role
 export async function userHasRole(userId: string, role: string): Promise<boolean> {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('user_roles')
     .select()
@@ -30,6 +31,7 @@ export async function userHasRole(userId: string, role: string): Promise<boolean
 
 // Add a role to a user
 export async function addUserRole(userId: string, role: string) {
+  const supabase = await createClient();
   const { error } = await supabase
     .from('user_roles')
     .insert({ user_id: userId, role });
@@ -40,6 +42,7 @@ export async function addUserRole(userId: string, role: string) {
 
 // Remove a role from a user
 export async function removeUserRole(userId: string, role: string) {
+  const supabase = await createClient();
   const { error } = await supabase
     .from('user_roles')
     .delete()

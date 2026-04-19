@@ -286,7 +286,7 @@ export interface OrderRefundInput {
 }
 
 export interface OrderWithCustomer extends Order {
-  customer: Customer | null;
+  customer: Customer | undefined;
   items: OrderItem[];
 }
 

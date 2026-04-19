@@ -1,138 +1,206 @@
-import { createClient } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
+/**
+ * Orders API - List & Create
+ * GET: List orders with filtering
+ * POST: Create new order
+ */
 
-export async function GET(request: Request) {
-  const supabase = await createClient();
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get('pageSize') || '10')));
+    const status = searchParams.get('status');
+    const customerId = searchParams.get('customerId');
 
-  const { data, error } = await supabase
-    .from('orders')
-    .select(`
-      id,
-      shop_id,
-      total_amount,
-      amount_paid,
-      created_at,
-      shop:shop_id (
-        name
-      )
-      `)
-    .eq('user_uid', user.id)
-    .order('id', { ascending: true }); 
-    
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
 
-  return NextResponse.json(data)
-}
+    let query = supabase
+      .from('orders')
+      .select('*,customer:customers(*),items:order_items(*)', { count: 'exact' });
 
+    if (status) {
+      query = query.eq('status', status);
+    }
 
+    if (customerId) {
+      query = query.eq('customer_id', customerId);
+    }
 
+    query = query.order('created_at', { ascending: false });
 
-export async function POST(request: Request) {
-  const supabase = await createClient();
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
 
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+    const { data, count, error } = await query.range(from, to);
 
-  const { shopId, products, total, amount_paid , buy_total} = await request.json();
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
-  if(amount_paid > total){
+    return NextResponse.json({
+      success: true,
+      data: data || [],
+      pagination: {
+        total: count || 0,
+        page,
+        pageSize,
+        totalPages: Math.ceil((count || 0) / pageSize),
+      },
+    });
+  } catch (error) {
+    console.error('Orders list error:', error);
     return NextResponse.json(
-      { error: `Ammount Paid Cannot be greater than total.` },
+      { error: 'Failed to fetch orders' },
       { status: 500 }
     );
   }
+}
 
+export async function POST(request: NextRequest) {
   try {
-    // Validate product stock
-    for (const product of products) {
-      const { data: productData, error: productError } = await supabase
-        .from('products')
-        .select('in_stock , name')
-        .eq('id', product.id)
-        .single();
+    const body = await request.json();
+    const {
+      customer_id,
+      items,
+      amount_paid,
+      payment_method,
+      notes,
+    } = body;
 
-      if (productError) {
-        throw productError;
-      }
-
-      if (productData.in_stock < product.quantity) {
-        return NextResponse.json(
-          { error: `Insufficient stock for product ${productData.name}` },
-          { status: 400 }
-        );
-      }
+    if (!customer_id || !items || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json(
+        { error: 'Customer and items are required' },
+        { status: 400 }
+      );
     }
 
-    // Insert the order
-    const { data: orderData, error: orderError } = await supabase
+    if (amount_paid === undefined || amount_paid < 0) {
+      return NextResponse.json(
+        { error: 'Valid amount_paid required' },
+        { status: 400 }
+      );
+    }
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    // Calculate totals
+    let subtotal = 0;
+    let discountTotal = 0;
+
+    for (const item of items) {
+      const lineSubtotal = item.quantity * item.unit_price;
+      const discount = (lineSubtotal * (item.discount_pct || 0)) / 100;
+      subtotal += lineSubtotal;
+      discountTotal += discount;
+    }
+
+    const totalAmount = subtotal - discountTotal;
+
+    // Create order
+    const { data: order, error: orderError } = await supabase
       .from('orders')
-      .insert({
-        shop_id: shopId,
-        total_amount: total,
-        amount_paid: amount_paid,
-        user_uid: user.id,
-        buy_amount: buy_total,
-      })
-      .select('*')
+      .insert([
+        {
+          customer_id,
+          subtotal,
+          discount_total: discountTotal,
+          total_amount: totalAmount,
+          amount_paid: Math.min(amount_paid, totalAmount),
+          balance_due: Math.max(0, totalAmount - amount_paid),
+          payment_method: payment_method || 'cash',
+          notes: notes || null,
+          status: amount_paid >= totalAmount ? 'paid' : 'partial',
+        },
+      ])
+      .select()
       .single();
 
     if (orderError) {
-      throw orderError;
+      return NextResponse.json({ error: orderError.message }, { status: 500 });
     }
 
-    // Insert the order items
-    const orderItems = products.map((product: { id: number, quantity: number, price: number }) => ({
-      order_id: orderData.id,
-      product_id: product.id,
-      quantity: product.quantity,
-      price: product.price,
-      user_uid:user.id,
-    }));
+    // Add order items
+    const orderItems = items.map((item: any) => {
+      const lineSubtotal = item.quantity * item.unit_price;
+      const discountAmount = (lineSubtotal * (item.discount_pct || 0)) / 100;
+      return {
+        order_id: order.id,
+        product_id: item.product_id,
+        product_variant_id: item.product_variant_id || null,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        discount_pct: item.discount_pct || 0,
+        discount_amount: discountAmount,
+        line_total: lineSubtotal - discountAmount,
+      };
+    });
 
-    const { error: itemsError } = await supabase
+    const { data: createdItems, error: itemsError } = await supabase
       .from('order_items')
-      .insert(orderItems);
+      .insert(orderItems)
+      .select();
 
     if (itemsError) {
-      // If there's an error inserting order items, delete the order
-      await supabase.from('orders').delete().eq('id', orderData.id);
-      throw itemsError;
+      return NextResponse.json({ error: itemsError.message }, { status: 500 });
     }
 
-    
-    // Update the khata table
-    const balance = amount_paid - total; // Calculate the balance
-    console.log(user.id);
-    const { error: khataError } = await supabase
-      .from('khata')
-      .insert({
-        shop_id: shopId,
-        balance: balance,
-        transaction_date: new Date().toISOString(),
-        user_uid:user.id,
-        order_id:orderData.id,
-      });
+    // If underpaid, create khata transaction
+    if (amount_paid < totalAmount) {
+      // Check if customer has khata account
+      const { data: khataAccount } = await supabase
+        .from('khata_accounts')
+        .select('id,current_balance')
+        .eq('customer_id', customer_id)
+        .single();
 
-    if (khataError) {
-      // If there's an error inserting into khata, delete the order and order items
-      await supabase.from('orders').delete().eq('id', orderData.id);
-      await supabase.from('order_items').delete().eq('order_id', orderData.id);
-      throw khataError;
+      if (khataAccount) {
+        const balanceDue = totalAmount - amount_paid;
+        const currentBalance = khataAccount.current_balance || 0;
+        await supabase.from('khata_transactions').insert([
+          {
+            khata_account_id: khataAccount.id,
+            order_id: order.id,
+            amount: balanceDue,
+            transaction_type: 'debit',
+            description: `Order #${order.id} - Balance due`,
+            balance_after: currentBalance + balanceDue,
+          },
+        ]);
+
+        // Update khata balance
+        await supabase
+          .from('khata_accounts')
+          .update({
+            current_balance: currentBalance + balanceDue,
+          })
+          .eq('id', khataAccount.id);
+      }
     }
 
-    return NextResponse.json(orderData);
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          order,
+          items: createdItems,
+        },
+      },
+      { status: 201 }
+    );
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    console.error('Order creation error:', error);
+    return NextResponse.json(
+      { error: 'Failed to create order' },
+      { status: 500 }
+    );
   }
 }

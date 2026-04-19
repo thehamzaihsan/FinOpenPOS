@@ -1,102 +1,201 @@
-import { createClient } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
+/**
+ * Khata API - List and Create
+ * GET /api/khata - List all khata accounts
+ * POST /api/khata - Create new khata account
+ */
 
-export async function GET(request: Request) {
-  const supabase = await createClient();
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import type { KhataAccountCreateInput } from '@/types/database.types';
 
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+/**
+ * GET - List all khata accounts with pagination
+ * Query params:
+ * - page: number (default: 1)
+ * - pageSize: number (default: 10)
+ * - search: string (searches customer name)
+ * - sortBy: string (default: updated_at)
+ */
+export async function GET(request: NextRequest) {
   try {
-    // Fetch all records from the shop_balances view
-    const { data, error } = await supabase
-      .from('shop_balances')
-      .select('*')
-      .eq('user_uid', user.id) // Filter by the current user's ID
-      .order('shop_id', { ascending: true }); // Sort by order_id in ascending order
-      
-    if (error) {
-      throw error;
+    const supabase = await createClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Log the raw data for debugging
-    console.log('Raw data from shop_balances:', JSON.stringify(data, null, 2));
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const pageSize = parseInt(searchParams.get('pageSize') || '10');
+    const search = searchParams.get('search') || '';
+    const sortBy = searchParams.get('sortBy') || 'updated_at';
 
-    // Return the fetched data
-    return NextResponse.json(data);
+    // Validate pagination
+    if (page < 1 || pageSize < 1 || pageSize > 100) {
+      return NextResponse.json(
+        { error: 'Invalid pagination parameters' },
+        { status: 400 }
+      );
+    }
+
+    let query = supabase
+      .from('khata_accounts')
+      .select(
+        `
+        *,
+        customer:customer_id(*)
+        `,
+        { count: 'exact' }
+      )
+      .eq('is_active', true);
+
+    // Apply search filter
+    if (search) {
+      // Need to search in customer name - this is complex in Supabase
+      // For now, fetch and filter in app
+      query = query.order(sortBy, { ascending: false });
+    } else {
+      query = query.order(sortBy, { ascending: false });
+    }
+
+    // Apply pagination
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    const { data, count, error } = await query.range(from, to);
+
+    if (error) throw error;
+
+    // If search, filter in application
+    let filtered = data || [];
+    if (search) {
+      filtered = filtered.filter((acc: any) =>
+        acc.customer?.name?.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: filtered,
+      pagination: {
+        total: count || 0,
+        page,
+        pageSize,
+        totalPages: Math.ceil((count || 0) / pageSize),
+        hasMore: page < Math.ceil((count || 0) / pageSize),
+      },
+    });
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    console.error('Khata accounts list error:', error);
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to fetch khata accounts',
+      },
+      { status: 500 }
+    );
   }
 }
 
-
-
-export async function POST(request: Request) {
-  const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+/**
+ * POST - Create new khata account
+ * Body: KhataAccountCreateInput
+ */
+export async function POST(request: NextRequest) {
   try {
-    // Parse the request body
-    const { shopID, amount } = await request.json();
+    const supabase = await createClient();
 
-    // Validate the input
-    if (!shopID || typeof amount !== 'number') {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json() as KhataAccountCreateInput;
+    const { customer_id, opening_balance = 0 } = body;
+
+    // Validation
+    if (!customer_id) {
       return NextResponse.json(
-        { error: 'Invalid input: shopID and amount are required' },
+        { error: 'Customer ID is required' },
         { status: 400 }
       );
     }
 
-    // Fetch the current balance for the shop
-    const { data: currentBalanceData, error: balanceError } = await supabase
-      .from('shop_balances')
-      .select('total_balance')
-      .eq('shop_id', shopID)
-      .eq('user_uid', user.id)
+    if (typeof opening_balance !== 'number' || opening_balance < 0) {
+      return NextResponse.json(
+        { error: 'Opening balance must be a non-negative number' },
+        { status: 400 }
+      );
+    }
+
+    // Verify customer exists
+    const { data: customer, error: customerError } = await supabase
+      .from('customers')
+      .select('id')
+      .eq('id', customer_id)
+      .eq('is_active', true)
       .single();
 
-    if (balanceError && balanceError.code !== 'PGRST116') { // Ignore "No rows found" error
-      throw balanceError;
-    }
-
-    const currentBalance = currentBalanceData?.total_balance || 0;
-
-    // Check if the new transaction will result in a negative balance
-    if (currentBalance + amount > 1) {
+    if (customerError || !customer) {
       return NextResponse.json(
-        { error: `Invalid transaction: Current balance (${currentBalance}) + Amount (${amount}) exceeds limit` },
-        { status: 400 }
+        { error: 'Customer not found or is inactive' },
+        { status: 404 }
       );
     }
 
-    // Insert the new record into the khata table
-    const { data, error } = await supabase
-      .from('khata')
-      .insert([
-        {
-          shop_id: shopID,
-          balance: amount,
-          user_uid: user.id,
-          transaction_date: new Date().toISOString(),
-        },
-      ])
-      .select('*');
+    // Check if khata account already exists
+    const { data: existing, error: checkError } = await supabase
+      .from('khata_accounts')
+      .select('id')
+      .eq('customer_id', customer_id)
+      .eq('is_active', true)
+      .maybeSingle();
 
-    if (error) {
-      throw error;
+    if (checkError && checkError.code !== 'PGRST116') {
+      throw checkError;
     }
 
-    // Return the inserted record
-    return NextResponse.json(data[0]);
+    if (existing) {
+      return NextResponse.json(
+        { error: 'Khata account already exists for this customer' },
+        { status: 409 }
+      );
+    }
+
+    const { data, error } = await supabase
+      .from('khata_accounts')
+      .insert([
+        {
+          customer_id,
+          opening_balance,
+          current_balance: opening_balance,
+          is_active: true,
+        },
+      ])
+      .select(
+        `
+        *,
+        customer:customer_id(*)
+        `
+      )
+      .single();
+
+    if (error) throw error;
+
+    return NextResponse.json({ success: true, data }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    console.error('Khata account creation error:', error);
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to create khata account',
+      },
+      { status: 500 }
+    );
   }
 }
