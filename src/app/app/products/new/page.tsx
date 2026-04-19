@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { getSupabaseClient } from "@/lib/supabase-client";
+import { dataService } from "@/lib/data-service";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 
 interface Variant {
@@ -33,8 +33,6 @@ export default function NewProductPage() {
   minDiscount: 0,
   maxDiscount: 0,
  });
-
- const supabase = getSupabaseClient();
 
  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
   const { name, value } = e.target;
@@ -85,10 +83,11 @@ export default function NewProductPage() {
     return;
    }
 
-   // Create product
-   const { data: product, error: productError } = await supabase
-    .from("products")
-    .insert({
+   // Create product via API
+   const productResponse = await fetch("/api/products", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
      name: formData.name,
      description: formData.description,
      purchase_price: formData.purchasePrice,
@@ -98,17 +97,21 @@ export default function NewProductPage() {
      quantity: variants.length === 0 ? formData.quantity : 0,
      min_discount: formData.minDiscount,
      max_discount: formData.maxDiscount,
-    })
-    .select()
-    .single();
+    }),
+   });
 
-   if (productError) throw productError;
+   if (!productResponse.ok) {
+    const error = await productResponse.json();
+    throw new Error(error.error || "Failed to create product");
+   }
+
+   const { data: product } = await productResponse.json();
 
    // Add variants if any
    if (variants.length > 0) {
     const variantData = variants.map((v) => ({
      product_id: product.id,
-     name: v.name,
+     variant_name: v.name,
      item_code: v.itemCode,
      purchase_price: v.purchasePrice,
      sale_price: v.salePrice,
@@ -117,18 +120,24 @@ export default function NewProductPage() {
      max_discount: v.maxDiscount,
     }));
 
-    const { error: variantError } = await supabase
-     .from("product_variants")
-     .insert(variantData);
+    const variantResponse = await fetch("/api/products/variants", {
+     method: "POST",
+     headers: { "Content-Type": "application/json" },
+     body: JSON.stringify({ variants: variantData }),
+    });
 
-    if (variantError) throw variantError;
+    if (!variantResponse.ok) {
+     const error = await variantResponse.json();
+     throw new Error(error.error || "Failed to add variants");
+    }
    }
 
    alert("Product created successfully!");
+   dataService.invalidateProductsCache();
    router.push("/app/products");
   } catch (error) {
    console.error("Failed to create product:", error);
-   alert("Failed to create product");
+   alert(`Failed to create product: ${error instanceof Error ? error.message : "Unknown error"}`);
   } finally {
    setLoading(false);
   }

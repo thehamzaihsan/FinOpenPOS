@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { getSupabaseClient } from "@/lib/supabase-client";
+import { dataService } from "@/lib/data-service";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 
 export default function NewDealPage() {
@@ -12,29 +12,23 @@ export default function NewDealPage() {
  const [products, setProducts] = useState<any[]>([]);
  const [selectedProducts, setSelectedProducts] = useState<any[]>([]);
  const [loading, setLoading] = useState(false);
- const [formData, setFormData] = useState({
-  name: "",
-  description: "",
- });
+  const [formData, setFormData] = useState({
+   name: "",
+   description: "",
+  });
 
- const supabase = getSupabaseClient();
+  useEffect(() => {
+   loadProducts();
+  }, []);
 
- useEffect(() => {
-  loadProducts();
- }, []);
-
- const loadProducts = async () => {
-  try {
-   const { data } = await supabase
-    .from("products")
-    .select("*")
-    .eq("is_active", true);
-
-   setProducts(data || []);
-  } catch (error) {
-   console.error("Failed to load products:", error);
-  }
- };
+  const loadProducts = async () => {
+   try {
+    const data = await dataService.getProducts();
+    setProducts(data || []);
+   } catch (error) {
+    console.error("Failed to load products:", error);
+   }
+  };
 
  const handleAddProduct = (productId: string) => {
   const product = products.find((p) => p.id === productId);
@@ -47,48 +41,44 @@ export default function NewDealPage() {
   setSelectedProducts(selectedProducts.filter((p) => p.id !== productId));
  };
 
- const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setLoading(true);
+  const handleSubmit = async (e: React.FormEvent) => {
+   e.preventDefault();
+   setLoading(true);
 
-  try {
-   if (!formData.name) {
-    alert("Deal name is required");
+   try {
+    if (!formData.name) {
+     alert("Deal name is required");
+     setLoading(false);
+     return;
+    }
+
+    const response = await fetch("/api/deals", {
+     method: "POST",
+     headers: { "Content-Type": "application/json" },
+     body: JSON.stringify({
+      name: formData.name,
+      description: formData.description,
+      items: selectedProducts.map((p) => ({
+       product_id: p.id,
+       quantity: p.quantity,
+      })),
+     }),
+    });
+
+    if (!response.ok) {
+     const error = await response.json();
+     throw new Error(error.error || "Failed to create deal");
+    }
+
+    alert("Deal created successfully!");
+    router.push("/app/deals");
+   } catch (error) {
+    console.error("Failed to create deal:", error);
+    alert(`Failed to create deal: ${error instanceof Error ? error.message : "Unknown error"}`);
+   } finally {
     setLoading(false);
-    return;
    }
-
-   const { data: deal, error: dealError } = await supabase
-    .from("deals")
-    .insert({
-     name: formData.name,
-     description: formData.description,
-    })
-    .select()
-    .single();
-
-   if (dealError) throw dealError;
-
-   // Add deal items
-   if (selectedProducts.length > 0) {
-    const dealItems = selectedProducts.map((p) => ({
-     deal_id: deal.id,
-     product_id: p.id,
-     quantity: p.quantity,
-    }));
-
-    await supabase.from("deal_items").insert(dealItems);
-   }
-
-   alert("Deal created successfully!");
-   router.push("/app/deals");
-  } catch (error) {
-   console.error("Failed to create deal:", error);
-   alert("Failed to create deal");
-  } finally {
-   setLoading(false);
-  }
- };
+  };
 
  return (
   <div className="p-6 space-y-6">

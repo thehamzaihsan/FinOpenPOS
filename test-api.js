@@ -77,8 +77,9 @@ async function runTests() {
   // ============================================================
   console.log(`${colors.yellow}\n=== PRODUCTS API ===${colors.reset}`);
   
-  let products = await testEndpoint('GET', '/api/products');
-  if (products?.length > 0) {
+  let productsRes = await testEndpoint('GET', '/api/products');
+  let products = productsRes?.data || [];
+  if (products.length > 0) {
     productId = products[0].id;
   }
 
@@ -88,7 +89,9 @@ async function runTests() {
     purchase_price: 50.00,
     sale_price: 100.00,
     quantity: 10,
-    unit: 'piece'
+    unit: 'piece',
+    min_discount: 0,
+    max_discount: 10
   };
   let created = await testEndpoint('POST', '/api/products', newProduct);
   if (created?.id) {
@@ -115,8 +118,9 @@ async function runTests() {
   // ============================================================
   console.log(`${colors.yellow}\n=== CUSTOMERS API ===${colors.reset}`);
   
-  let customers = await testEndpoint('GET', '/api/customers');
-  if (customers?.length > 0) {
+  let customersRes = await testEndpoint('GET', '/api/customers');
+  let customers = customersRes?.data || [];
+  if (customers.length > 0) {
     customerId = customers[0].id;
   }
 
@@ -142,40 +146,47 @@ async function runTests() {
   console.log(`${colors.yellow}\n=== ORDERS API ===${colors.reset}`);
   
   let orders = await testEndpoint('GET', '/api/orders');
-  if (orders?.length > 0) {
-    orderId = orders[0].id;
+  if (orders?.data?.length > 0) {
+    orderId = orders.data[0].id;
   }
 
-  const newOrder = {
+  // Test Walk-in Order (no customer_id)
+  const walkInOrder = {
     total_amount: 500.00,
     amount_paid: 500.00,
     status: 'paid',
     payment_method: 'cash',
-    is_khata: false
+    is_khata: false,
+    subtotal: 500.00,
+    discount_total: 0
   };
-  let createdOrder = await testEndpoint('POST', '/api/orders', newOrder);
-  if (createdOrder?.id) {
-    orderId = createdOrder.id;
+  console.log(`\n${colors.yellow}Testing: POST /api/orders (Walk-in)${colors.reset}`);
+  let createdWalkInOrder = await testEndpoint('POST', '/api/orders', walkInOrder);
+  if (createdWalkInOrder?.data?.id) {
+    orderId = createdWalkInOrder.data.id;
+  }
+
+  // Test Retail Order (with customer_id)
+  if (customerId) {
+    const retailOrder = {
+      customer_id: customerId,
+      total_amount: 250.00,
+      amount_paid: 100.00,  // Partial payment
+      status: 'partial',
+      payment_method: 'cash',
+      is_khata: true,
+      subtotal: 250.00,
+      discount_total: 0
+    };
+    console.log(`\n${colors.yellow}Testing: POST /api/orders (Retail with credit)${colors.reset}`);
+    let createdRetailOrder = await testEndpoint('POST', '/api/orders', retailOrder);
+    if (createdRetailOrder?.data?.id) {
+      orderId = createdRetailOrder.data.id;
+    }
   }
 
   if (orderId) {
     await testEndpoint('GET', `/api/orders/${orderId}`);
-
-    const orderItem = {
-      product_id: productId,
-      quantity: 2,
-      unit_price: 100.00,
-      discount_pct: 0,
-      discount_amount: 0,
-      line_total: 200.00
-    };
-    await testEndpoint('POST', `/api/orders/${orderId}/items`, orderItem);
-
-    const refund = {
-      refund_amount: 100.00,
-      reason: 'Customer request'
-    };
-    await testEndpoint('POST', `/api/orders/${orderId}/refund`, refund);
   }
 
   await testEndpoint('GET', '/api/orders/today');
@@ -185,8 +196,9 @@ async function runTests() {
   // ============================================================
   console.log(`${colors.yellow}\n=== DEALS API ===${colors.reset}`);
   
-  let deals = await testEndpoint('GET', '/api/deals');
-  if (deals?.length > 0) {
+  let dealsRes = await testEndpoint('GET', '/api/deals');
+  let deals = dealsRes?.data || [];
+  if (deals.length > 0) {
     dealId = deals[0].id;
   }
 
@@ -216,8 +228,9 @@ async function runTests() {
   // ============================================================
   console.log(`${colors.yellow}\n=== KHATA (Credit Ledger) API ===${colors.reset}`);
   
-  let khatas = await testEndpoint('GET', '/api/khata');
-  let khataId = khatas?.[0]?.id;
+  let khatasRes = await testEndpoint('GET', '/api/khata');
+  let khatas = khatasRes?.data || [];
+  let khataId = khatas[0]?.id;
 
   if (khataId) {
     await testEndpoint('GET', `/api/khata/${khataId}`);

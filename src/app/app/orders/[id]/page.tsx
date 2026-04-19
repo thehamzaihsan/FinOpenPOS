@@ -25,13 +25,14 @@ interface Order {
 }
 
 interface OrderItem {
- id: string;
- order_id: string;
- product_id: string;
- product_name: string;
- quantity: number;
- unit_price: number;
- discount_percent: number;
+  id: string;
+  order_id: string;
+  product_id: string;
+  quantity: number;
+  unit_price: number;
+  discount_pct: number;
+  discount_amount: number;
+  line_total: number;
 }
 
 export default function OrderDetailPage() {
@@ -104,17 +105,11 @@ export default function OrderDetailPage() {
   }
  };
 
- const calculateLineTotal = (item: OrderItem): number => {
-  const subtotal = item.quantity * item.unit_price;
-  const discount = (subtotal * item.discount_percent) / 100;
-  return subtotal - discount;
- };
-
- const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
- const totalDiscount = items.reduce(
-  (sum, item) => sum + (item.quantity * item.unit_price * item.discount_percent) / 100,
-  0
- );
+  const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+  const totalDiscount = items.reduce(
+   (sum, item) => sum + item.discount_amount,
+   0
+  );
 
  if (loading) {
   return (
@@ -221,23 +216,23 @@ export default function OrderDetailPage() {
          </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-         {items.map((item) => (
-          <tr key={item.id}>
-           <td className="py-3 px-4 text-gray-900 font-medium">
-            {item.product_name}
-           </td>
-           <td className="py-3 px-4 text-gray-700">{item.quantity}</td>
-           <td className="py-3 px-4 text-gray-700">
-            PKR {item.unit_price}
-           </td>
-           <td className="py-3 px-4 text-gray-700">
-            {item.discount_percent}%
-           </td>
-           <td className="py-3 px-4 text-right text-gray-900 font-medium">
-            PKR {calculateLineTotal(item).toLocaleString()}
-           </td>
-          </tr>
-         ))}
+          {items.map((item) => (
+           <tr key={item.id}>
+            <td className="py-3 px-4 text-gray-900 font-medium">
+             Product {item.product_id.slice(0, 8)}
+            </td>
+            <td className="py-3 px-4 text-gray-700">{item.quantity}</td>
+            <td className="py-3 px-4 text-gray-700">
+             PKR {item.unit_price}
+            </td>
+            <td className="py-3 px-4 text-gray-700">
+             {item.discount_pct > 0 ? `${item.discount_pct}%` : '-'}
+            </td>
+            <td className="py-3 px-4 text-right text-gray-900 font-medium">
+             PKR {item.line_total.toLocaleString()}
+            </td>
+           </tr>
+          ))}
         </tbody>
        </table>
       </div>

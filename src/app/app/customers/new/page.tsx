@@ -26,32 +26,41 @@ export default function NewCustomerPage() {
   }));
  };
 
- const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setLoading(true);
+  const handleSubmit = async (e: React.FormEvent) => {
+   e.preventDefault();
+   setLoading(true);
 
-  try {
-   if (!formData.name) {
-    alert("Customer name is required");
+   try {
+    if (!formData.name) {
+     alert("Customer name is required");
+     setLoading(false);
+     return;
+    }
+
+    const response = await fetch("/api/customers", {
+     method: "POST",
+     headers: { "Content-Type": "application/json" },
+     body: JSON.stringify({
+      name: formData.name,
+      phone: formData.phone,
+      address: formData.address,
+     }),
+    });
+
+    if (!response.ok) {
+     const error = await response.json();
+     throw new Error(error.error || "Failed to create customer");
+    }
+
+    alert("Customer created successfully!");
+    router.push("/app/customers");
+   } catch (error) {
+    console.error("Failed to create customer:", error);
+    alert(`Failed to create customer: ${error instanceof Error ? error.message : "Unknown error"}`);
+   } finally {
     setLoading(false);
-    return;
    }
-
-   await supabase.from("customers").insert({
-    name: formData.name,
-    phone: formData.phone,
-    address: formData.address,
-   });
-
-   alert("Customer created successfully!");
-   router.push("/app/customers");
-  } catch (error) {
-   console.error("Failed to create customer:", error);
-   alert("Failed to create customer");
-  } finally {
-   setLoading(false);
-  }
- };
+  };
 
  return (
   <div className="p-6 space-y-6">

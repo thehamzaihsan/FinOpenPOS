@@ -101,6 +101,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (sale_price < purchase_price) {
+      return NextResponse.json(
+        { error: 'Sale price must be greater than or equal to purchase price' },
+        { status: 400 }
+      );
+    }
+
+    // Calculate max allowed discount: ((sale_price - purchase_price) / sale_price) * 100
+    const maxAllowedDiscount = sale_price > 0 
+      ? ((sale_price - purchase_price) / sale_price) * 100 
+      : 0;
+
+    if (max_discount > maxAllowedDiscount) {
+      return NextResponse.json(
+        { 
+          error: `Max discount cannot exceed ${maxAllowedDiscount.toFixed(2)}% without causing a loss. At that discount level, the final price would be below the purchase price.`,
+          maxAllowedDiscount: parseFloat(maxAllowedDiscount.toFixed(2))
+        },
+        { status: 400 }
+      );
+    }
+
     const supabase = await createClient();
 
     const { data, error } = await supabase

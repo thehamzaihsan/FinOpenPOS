@@ -28,21 +28,26 @@ export default function DealsPage() {
   }
  };
 
- const handleDelete = async (dealId: string) => {
-  if (!confirm("Delete this deal?")) return;
+  const handleDelete = async (dealId: string) => {
+   if (!confirm("Delete this deal?")) return;
 
-  try {
-   await supabase
-    .from("deals")
-    .update({ is_active: false })
-    .eq("id", dealId);
+   try {
+    const response = await fetch(`/api/deals/${dealId}`, {
+     method: "DELETE",
+    });
 
-   dataService.invalidateDealsCache();
-   loadDeals(true);
-  } catch (error) {
-   alert("Failed to delete deal");
-  }
- };
+    if (!response.ok) {
+     const error = await response.json();
+     throw new Error(error.error || "Failed to delete deal");
+    }
+
+    dataService.invalidateDealsCache();
+    loadDeals(true);
+   } catch (error) {
+    console.error("Failed to delete deal:", error);
+    alert(`Failed to delete deal: ${error instanceof Error ? error.message : "Unknown error"}`);
+   }
+  };
 
  if (loading) {
   return (

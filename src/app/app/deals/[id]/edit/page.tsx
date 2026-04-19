@@ -4,7 +4,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { getSupabaseClient } from "@/lib/supabase-client";
 import { ArrowLeft } from "lucide-react";
 
 export default function EditDealPage() {
@@ -19,21 +18,19 @@ export default function EditDealPage() {
   description: "",
  });
 
- const supabase = getSupabaseClient();
-
  useEffect(() => {
   loadDeal();
  }, [dealId]);
 
  const loadDeal = async () => {
   try {
-   const { data, error } = await supabase
-    .from("deals")
-    .select("*")
-    .eq("id", dealId)
-    .single();
+   const response = await fetch(`/api/deals/${dealId}`);
 
-   if (error) throw error;
+   if (!response.ok) {
+    throw new Error("Failed to load deal");
+   }
+
+   const { data } = await response.json();
 
    setFormData({
     name: data.name,
@@ -60,19 +57,25 @@ export default function EditDealPage() {
   setSaving(true);
 
   try {
-   await supabase
-    .from("deals")
-    .update({
+   const response = await fetch(`/api/deals/${dealId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
      name: formData.name,
      description: formData.description,
-    })
-    .eq("id", dealId);
+    }),
+   });
+
+   if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to update deal");
+   }
 
    alert("Deal updated successfully!");
    router.push("/app/deals");
   } catch (error) {
    console.error("Failed to update deal:", error);
-   alert("Failed to update deal");
+   alert(`Failed to update deal: ${error instanceof Error ? error.message : "Unknown error"}`);
   } finally {
    setSaving(false);
   }

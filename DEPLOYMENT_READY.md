@@ -82,19 +82,28 @@ This creates:
 - Triggers (auto-balance calculation, khata flagging)
 - 1x system Walk-in customer record
 
-**If you get "invalid input value for enum order_status: \"paid\"" error:**
+### Step 3b: Apply Post-Setup Migrations
 
-Run this additional migration in Supabase SQL Editor:
+After running the main migration, run these fixes in order in Supabase SQL Editor:
 
+**Migration 1: Fix enum values**
 ```sql
 ALTER TYPE order_status ADD VALUE 'paid' IF NOT EXISTS;
 ALTER TYPE order_status ADD VALUE 'partial' IF NOT EXISTS;
 ALTER TYPE order_status ADD VALUE 'refunded' IF NOT EXISTS;
 ```
 
-Then refresh your app and try again.
+**Migration 2: Allow NULL customer_id (for walk-in sales)**
+```sql
+ALTER TABLE orders 
+ALTER COLUMN customer_id DROP NOT NULL;
+```
 
-(See `FIX_ENUM_ERROR.md` for detailed troubleshooting)
+**Why these migrations?**
+- The enum fix ensures order status values are valid
+- The customer_id fix allows walk-in sales (where customer_id is NULL) to work
+
+See `FIX_ENUM_ERROR.md` for detailed troubleshooting of these errors.
 
 ### Step 4: Create User Account
 

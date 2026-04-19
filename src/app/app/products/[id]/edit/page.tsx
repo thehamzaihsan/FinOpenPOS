@@ -61,43 +61,63 @@ export default function EditProductPage() {
   }
  };
 
- const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-  const { name, value } = e.target;
-  setFormData((prev) => ({
-   ...prev,
-   [name]: name.includes("Price") || name.includes("Discount") || name === "quantity" ? parseFloat(value) || 0 : value,
-  }));
- };
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+   const { name, value } = e.target;
+   setFormData((prev) => ({
+    ...prev,
+    [name]: name.includes("Price") || name.includes("Discount") || name === "quantity" ? parseFloat(value) || 0 : value,
+   }));
+  };
 
- const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setSaving(true);
+  const calculateMaxAllowedDiscount = (salePrice: number, purchasePrice: number): number => {
+   if (salePrice <= 0 || salePrice < purchasePrice) return 0;
+   return ((salePrice - purchasePrice) / salePrice) * 100;
+  };
 
-  try {
-   await supabase
-    .from("products")
-    .update({
-     name: formData.name,
-     description: formData.description,
-     purchase_price: formData.purchasePrice,
-     sale_price: formData.salePrice,
-     unit: formData.unit,
-     item_code: formData.itemCode,
-     quantity: formData.quantity,
-     min_discount: formData.minDiscount,
-     max_discount: formData.maxDiscount,
-    })
-    .eq("id", productId);
+  const maxAllowedDiscount = calculateMaxAllowedDiscount(formData.salePrice, formData.purchasePrice);
 
-   alert("Product updated successfully!");
-   router.push("/app/products");
-  } catch (error) {
-   console.error("Failed to update product:", error);
-   alert("Failed to update product");
-  } finally {
-   setSaving(false);
-  }
- };
+  const handleSubmit = async (e: React.FormEvent) => {
+   e.preventDefault();
+   setSaving(true);
+
+   try {
+    if (formData.salePrice < formData.purchasePrice) {
+     alert("Sale price must be greater than or equal to purchase price");
+     setSaving(false);
+     return;
+    }
+
+    const maxAllowed = calculateMaxAllowedDiscount(formData.salePrice, formData.purchasePrice);
+    if (formData.maxDiscount > maxAllowed) {
+     alert(`Max discount cannot exceed ${maxAllowed.toFixed(2)}% without causing a loss`);
+     setSaving(false);
+     return;
+    }
+
+    await supabase
+     .from("products")
+     .update({
+      name: formData.name,
+      description: formData.description,
+      purchase_price: formData.purchasePrice,
+      sale_price: formData.salePrice,
+      unit: formData.unit,
+      item_code: formData.itemCode,
+      quantity: formData.quantity,
+      min_discount: formData.minDiscount,
+      max_discount: formData.maxDiscount,
+     })
+     .eq("id", productId);
+
+    alert("Product updated successfully!");
+    router.push("/app/products");
+   } catch (error) {
+    console.error("Failed to update product:", error);
+    alert("Failed to update product");
+   } finally {
+    setSaving(false);
+   }
+  };
 
  if (loading) {
   return (
@@ -196,19 +216,33 @@ export default function EditProductPage() {
        />
       </div>
 
-      <div>
-       <label className="block text-sm font-medium text-gray-700 mb-1">
-        Sale Price
-       </label>
-       <input
-        type="number"
-        name="salePrice"
-        value={formData.salePrice}
-        onChange={handleInputChange}
-        step="0.01"
-        className="w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500"
-       />
-      </div>
+       <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+         Sale Price
+        </label>
+        <input
+         type="number"
+         name="salePrice"
+         value={formData.salePrice}
+         onChange={handleInputChange}
+         step="0.01"
+         className={`w-full px-4 py-2 border focus:ring-2 focus:ring-blue-500 ${
+          formData.salePrice < formData.purchasePrice
+           ? 'border-red-500 bg-red-50'
+           : 'border-gray-300'
+         }`}
+        />
+        {formData.salePrice < formData.purchasePrice && (
+         <p className="text-red-600 text-sm mt-1">
+          Sale price cannot be less than purchase price
+         </p>
+        )}
+        {formData.salePrice >= formData.purchasePrice && formData.purchasePrice > 0 && (
+         <p className="text-green-600 text-sm mt-1">
+          Profit margin: {(((formData.salePrice - formData.purchasePrice) / formData.purchasePrice) * 100).toFixed(1)}%
+         </p>
+        )}
+       </div>
      </div>
 
      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -225,33 +259,47 @@ export default function EditProductPage() {
        />
       </div>
 
-      <div>
-       <label className="block text-sm font-medium text-gray-700 mb-1">
-        Min Discount %
-       </label>
-       <input
-        type="number"
-        name="minDiscount"
-        value={formData.minDiscount}
-        onChange={handleInputChange}
-        step="0.01"
-        className="w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500"
-       />
-      </div>
+       <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+         Min Discount %
+        </label>
+        <input
+         type="number"
+         name="minDiscount"
+         value={formData.minDiscount}
+         onChange={handleInputChange}
+         step="0.01"
+         max={maxAllowedDiscount}
+         className="w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500"
+        />
+       </div>
 
-      <div>
-       <label className="block text-sm font-medium text-gray-700 mb-1">
-        Max Discount %
-       </label>
-       <input
-        type="number"
-        name="maxDiscount"
-        value={formData.maxDiscount}
-        onChange={handleInputChange}
-        step="0.01"
-        className="w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500"
-       />
-      </div>
+       <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+         Max Discount %
+         <span className="text-gray-500 font-normal text-xs ml-2">
+          (Max allowed: {maxAllowedDiscount.toFixed(2)}%)
+         </span>
+        </label>
+        <input
+         type="number"
+         name="maxDiscount"
+         value={formData.maxDiscount}
+         onChange={handleInputChange}
+         step="0.01"
+         max={maxAllowedDiscount}
+         className={`w-full px-4 py-2 border focus:ring-2 focus:ring-blue-500 ${
+          formData.maxDiscount > maxAllowedDiscount
+           ? 'border-red-500 bg-red-50'
+           : 'border-gray-300'
+         }`}
+        />
+        {formData.maxDiscount > maxAllowedDiscount && (
+         <p className="text-red-600 text-sm mt-1">
+          Max discount cannot exceed {maxAllowedDiscount.toFixed(2)}% or you'll be selling at a loss
+         </p>
+        )}
+       </div>
      </div>
     </div>
 

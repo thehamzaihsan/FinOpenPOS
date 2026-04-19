@@ -67,22 +67,27 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       customer_id,
-      items,
+      subtotal,
+      discount_total,
+      total_amount,
       amount_paid,
       payment_method,
+      status,
+      is_khata,
       notes,
     } = body;
 
-    if (!customer_id || !items || !Array.isArray(items) || items.length === 0) {
+    // Validate required fields
+    if (total_amount === undefined || amount_paid === undefined) {
       return NextResponse.json(
-        { error: 'Customer and items are required' },
+        { error: 'total_amount and amount_paid are required' },
         { status: 400 }
       );
     }
 
-    if (amount_paid === undefined || amount_paid < 0) {
+    if (typeof total_amount !== 'number' || typeof amount_paid !== 'number') {
       return NextResponse.json(
-        { error: 'Valid amount_paid required' },
+        { error: 'Price fields must be numbers' },
         { status: 400 }
       );
     }
@@ -92,114 +97,52 @@ export async function POST(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Calculate totals
-    let subtotal = 0;
-    let discountTotal = 0;
-
-    for (const item of items) {
-      const lineSubtotal = item.quantity * item.unit_price;
-      const discount = (lineSubtotal * (item.discount_pct || 0)) / 100;
-      subtotal += lineSubtotal;
-      discountTotal += discount;
+    // Determine order status
+    let orderStatus = status || (amount_paid >= total_amount ? 'paid' : 'partial');
+    
+    // Ensure status is valid
+    if (!['pending', 'paid', 'partial', 'refunded'].includes(orderStatus)) {
+      orderStatus = amount_paid >= total_amount ? 'paid' : 'partial';
     }
 
-    const totalAmount = subtotal - discountTotal;
+    // Calculate balance
+    const balance = total_amount - amount_paid;
 
-    // Create order
+    // Create order (customer_id can be null for walk-in)
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert([
         {
-          customer_id,
-          subtotal,
-          discount_total: discountTotal,
-          total_amount: totalAmount,
-          amount_paid: Math.min(amount_paid, totalAmount),
-          balance_due: Math.max(0, totalAmount - amount_paid),
+          customer_id: customer_id || null,  // NULL for walk-in
+          subtotal: subtotal || 0,
+          discount_total: discount_total || 0,
+          total_amount,
+          amount_paid,
           payment_method: payment_method || 'cash',
+          status: orderStatus,
+          is_khata: balance > 0 && customer_id ? true : false,  // Only khata if customer exists
           notes: notes || null,
-          status: amount_paid >= totalAmount ? 'paid' : 'partial',
         },
       ])
       .select()
       .single();
 
     if (orderError) {
+      console.error('Order creation error:', orderError);
       return NextResponse.json({ error: orderError.message }, { status: 500 });
-    }
-
-    // Add order items
-    const orderItems = items.map((item: any) => {
-      const lineSubtotal = item.quantity * item.unit_price;
-      const discountAmount = (lineSubtotal * (item.discount_pct || 0)) / 100;
-      return {
-        order_id: order.id,
-        product_id: item.product_id,
-        product_variant_id: item.product_variant_id || null,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        discount_pct: item.discount_pct || 0,
-        discount_amount: discountAmount,
-        line_total: lineSubtotal - discountAmount,
-      };
-    });
-
-    const { data: createdItems, error: itemsError } = await supabase
-      .from('order_items')
-      .insert(orderItems)
-      .select();
-
-    if (itemsError) {
-      return NextResponse.json({ error: itemsError.message }, { status: 500 });
-    }
-
-    // If underpaid, create khata transaction
-    if (amount_paid < totalAmount) {
-      // Check if customer has khata account
-      const { data: khataAccount } = await supabase
-        .from('khata_accounts')
-        .select('id,current_balance')
-        .eq('customer_id', customer_id)
-        .single();
-
-      if (khataAccount) {
-        const balanceDue = totalAmount - amount_paid;
-        const currentBalance = khataAccount.current_balance || 0;
-        await supabase.from('khata_transactions').insert([
-          {
-            khata_account_id: khataAccount.id,
-            order_id: order.id,
-            amount: balanceDue,
-            transaction_type: 'debit',
-            description: `Order #${order.id} - Balance due`,
-            balance_after: currentBalance + balanceDue,
-          },
-        ]);
-
-        // Update khata balance
-        await supabase
-          .from('khata_accounts')
-          .update({
-            current_balance: currentBalance + balanceDue,
-          })
-          .eq('id', khataAccount.id);
-      }
     }
 
     return NextResponse.json(
       {
         success: true,
-        data: {
-          order,
-          items: createdItems,
-        },
+        data: order,
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error('Order creation error:', error);
+    console.error('Order creation exception:', error);
     return NextResponse.json(
-      { error: 'Failed to create order' },
+      { error: error instanceof Error ? error.message : 'Failed to create order' },
       { status: 500 }
     );
   }

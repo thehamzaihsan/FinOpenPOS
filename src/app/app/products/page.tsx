@@ -60,22 +60,26 @@ export default function ProductsPage() {
   setCurrentPage(1);
  };
 
- const handleDelete = async (productId: string) => {
-  try {
-   await supabase
-    .from("products")
-    .update({ is_active: false })
-    .eq("id", productId);
+  const handleDelete = async (productId: string) => {
+   try {
+    const response = await fetch(`/api/products/${productId}`, {
+     method: 'DELETE',
+    });
 
-   // Invalidate cache and reload
-   dataService.invalidateProductsCache();
-   loadProducts(true);
-   setShowDeleteConfirm(null);
-  } catch (error) {
-   console.error("Failed to delete product:", error);
-   alert("Failed to delete product");
-  }
- };
+    if (!response.ok) {
+     const error = await response.json();
+     throw new Error(error.error || 'Failed to delete product');
+    }
+
+    // Invalidate cache and reload
+    dataService.invalidateProductsCache();
+    loadProducts(true);
+    setShowDeleteConfirm(null);
+   } catch (error) {
+    console.error("Failed to delete product:", error);
+    alert(`Failed to delete product: ${error instanceof Error ? error.message : 'Unknown error'}`);
+   }
+  };
 
  const startIdx = (currentPage - 1) * itemsPerPage;
  const paginatedProducts = filteredProducts.slice(
