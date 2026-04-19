@@ -37,21 +37,10 @@
 -- DROP TYPE IF EXISTS user_role CASCADE;
 
 -- ============================================================
--- SECTION 1: ENUMS - Use ALTER TYPE to safely add values
+-- SECTION 1: ENUMS
 -- ============================================================
-
--- Create or add to order_status enum
-DO $$
-BEGIN
-  CREATE TYPE order_status AS ENUM ('pending', 'paid', 'partial', 'refunded');
-EXCEPTION WHEN duplicate_object THEN
-  -- Type exists, check if we need to add values
-  ALTER TYPE order_status ADD VALUE 'paid' IF NOT EXISTS;
-  ALTER TYPE order_status ADD VALUE 'partial' IF NOT EXISTS;
-  ALTER TYPE order_status ADD VALUE 'refunded' IF NOT EXISTS;
-END $$;
-
 CREATE TYPE IF NOT EXISTS customer_type AS ENUM ('walk_in', 'retail');
+CREATE TYPE IF NOT EXISTS order_status AS ENUM ('pending', 'paid', 'partial', 'refunded');
 CREATE TYPE IF NOT EXISTS unit_type AS ENUM ('piece', 'dozen', 'kg', 'packet', 'litre', 'meter');
 CREATE TYPE IF NOT EXISTS payment_method AS ENUM ('cash', 'card', 'bank_transfer', 'khata');
 CREATE TYPE IF NOT EXISTS transaction_type AS ENUM ('debit', 'credit');

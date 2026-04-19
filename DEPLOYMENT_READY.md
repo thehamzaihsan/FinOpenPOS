@@ -82,6 +82,20 @@ This creates:
 - Triggers (auto-balance calculation, khata flagging)
 - 1x system Walk-in customer record
 
+**If you get "invalid input value for enum order_status: \"paid\"" error:**
+
+Run this additional migration in Supabase SQL Editor:
+
+```sql
+ALTER TYPE order_status ADD VALUE 'paid' IF NOT EXISTS;
+ALTER TYPE order_status ADD VALUE 'partial' IF NOT EXISTS;
+ALTER TYPE order_status ADD VALUE 'refunded' IF NOT EXISTS;
+```
+
+Then refresh your app and try again.
+
+(See `FIX_ENUM_ERROR.md` for detailed troubleshooting)
+
 ### Step 4: Create User Account
 
 In Supabase Authentication → Users → Add user
@@ -189,23 +203,83 @@ npm run dev
 
 ---
 
-## 🔍 Troubleshooting
+---
 
-### "Order creation error: {}"
-**Cause**: RLS policy blocking insert or missing user role
+## 🧪 Testing All API Endpoints
 
-**Fix**:
-1. Verify auth user exists in Supabase `users` table
-2. Ensure user has role set to 'salesman' or 'admin'
-3. Run migration again if RLS policies missing
+### Automated Testing (Recommended)
+
+**Node.js Test Suite:**
+
+```bash
+npm run dev
+# In another terminal:
+node test-api.js
+```
+
+This tests all 43 API endpoints automatically.
+
+**Bash Test Suite:**
+
+```bash
+chmod +x test-api.sh
+./test-api.sh
+```
+
+### Manual Testing
+
+Test individual endpoints in browser DevTools console or Postman:
+
+```javascript
+// Test 1: Create a product
+const productRes = await fetch('/api/products', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    name: 'Test Product',
+    item_code: 'TP001',
+    purchase_price: 50,
+    sale_price: 100,
+    quantity: 10
+  })
+});
+console.log(await productRes.json());
+
+// Test 2: Create an order
+const orderRes = await fetch('/api/orders', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    total_amount: 500,
+    amount_paid: 500,
+    status: 'paid',
+    payment_method: 'cash'
+  })
+});
+console.log(await orderRes.json());
+
+// Test 3: Get all orders
+const ordersRes = await fetch('/api/orders');
+console.log(await ordersRes.json());
+```
+
+---
+
+### "Order creation error: {code: '22P02', message: 'invalid input value for enum order_status: \"paid\"'}"
+
+**Cause**: Supabase database has old enum that doesn't include 'paid' and 'partial' values
+
+**Fix**: Run this in Supabase SQL Editor:
 
 ```sql
--- Check users table
-SELECT id, email, role FROM users;
-
--- Update role if needed
-UPDATE users SET role = 'salesman' WHERE email = 'your@email.com';
+ALTER TYPE order_status ADD VALUE 'paid' IF NOT EXISTS;
+ALTER TYPE order_status ADD VALUE 'partial' IF NOT EXISTS;
+ALTER TYPE order_status ADD VALUE 'refunded' IF NOT EXISTS;
 ```
+
+Then refresh browser and try again.
+
+See `FIX_ENUM_ERROR.md` for detailed instructions.
 
 ### "Customer not found"
 **Cause**: Walk-in customer record missing
