@@ -74,16 +74,28 @@ export default function POSPage() {
  };
 
  const addToCart = (product: Product) => {
-  const newItem: CartItem = {
-   id: `${product.id}-${Date.now()}`,
-   productId: product.id,
-   name: product.name,
-   quantity: 1,
-   unitPrice: product.sale_price,
-   discount: 0,
-   maxDiscount: product.max_discount,
-  };
-  setCart([...cart, newItem]);
+  const existingItem = cart.find((item) => item.productId === product.id);
+
+  if (existingItem) {
+   setCart(
+    cart.map((item) =>
+     item.productId === product.id
+      ? { ...item, quantity: item.quantity + 1 }
+      : item
+    )
+   );
+  } else {
+   const newItem: CartItem = {
+    id: `${product.id}-${Date.now()}`,
+    productId: product.id,
+    name: product.name,
+    quantity: 1,
+    unitPrice: product.sale_price,
+    discount: 0,
+    maxDiscount: product.max_discount,
+   };
+   setCart([...cart, newItem]);
+  }
  };
 
  const updateCartItem = (id: string, updates: Partial<CartItem>) => {
@@ -134,6 +146,16 @@ export default function POSPage() {
      // Determine status based on payment
      const orderStatus = amountPaid >= totalDue ? "paid" : "partial";
      
+     // Prepare order items
+     const orderItems = cart.map((item) => ({
+      product_id: item.productId,
+      quantity: item.quantity,
+      unit_price: item.unitPrice,
+      discount_pct: item.discount,
+      discount_amount: (item.unitPrice * item.quantity * item.discount) / 100,
+      line_total: (item.unitPrice * item.quantity) - ((item.unitPrice * item.quantity * item.discount) / 100),
+     }));
+
      const orderData: any = {
       subtotal: subtotal,
       discount_total: totalDiscount,
@@ -142,6 +164,7 @@ export default function POSPage() {
       payment_method: paymentMethod,
       status: orderStatus,
       is_khata: balance > 0,
+      items: orderItems,
      };
 
      // Only add customer_id for retail sales
@@ -149,7 +172,7 @@ export default function POSPage() {
       orderData.customer_id = selectedCustomer;
      }
 
-     // Create order via API
+     // Create order via API (which now handles items as well)
      const orderResponse = await fetch("/api/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -161,32 +184,130 @@ export default function POSPage() {
       setOrderError(`Order creation failed: ${error.error || "Unknown error"}`);
       return;
      }
-
+     
      const { data: order } = await orderResponse.json();
 
-     // Add order items via API
-     const orderItems = cart.map((item) => ({
-      product_id: item.productId,
-      quantity: item.quantity,
-      unit_price: item.unitPrice,
-      discount_pct: item.discount,
-      discount_amount: (item.unitPrice * item.quantity * item.discount) / 100,
-      line_total: (item.unitPrice * item.quantity) - ((item.unitPrice * item.quantity * item.discount) / 100),
-     }));
+     // Generate Thermal Receipt HTML
+     const printReceipt = () => {
+      try {
+       const printWindow = window.open('', '_blank', 'width=400,height=600');
+       
+       if (!printWindow) {
+        alert("Pop-up blocked. Could not print receipt, but order was saved successfully!");
+        return;
+       }
 
-     const itemsResponse = await fetch(`/api/orders/${order.id}/items`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: orderItems }),
-     });
+       const receiptHtml = `
+        <html>
+         <head>
+          <title>Receipt - ${order.id}</title>
+          <style>
+           body { font-family: monospace; width: 300px; margin: 0 auto; padding: 10px; color: #000; }
+           .text-center { text-align: center; }
+           .text-right { text-align: right; }
+           .font-bold { font-weight: bold; }
+           .divider { border-bottom: 1px dashed #000; margin: 10px 0; }
+           .flex { display: flex; justify-content: space-between; }
+           table { width: 100%; border-collapse: collapse; }
+           th, td { text-align: left; padding: 4px 0; font-size: 14px; }
+           th.right, td.right { text-align: right; }
+           .header { margin-bottom: 15px; }
+           .footer { margin-top: 20px; text-align: center; font-size: 12px; }
+           @media print {
+            body { width: 100%; margin: 0; padding: 0; }
+           }
+          </style>
+         </head>
+         <body>
+          <div class="header text-center">
+           <h2 style="margin:0 0 5px 0;">FinOpenPOS</h2>
+           <div class="divider"></div>
+           <p style="margin:0; font-size: 12px;">Receipt #: ${order.id.slice(0,8).toUpperCase()}</p>
+           <p style="margin:0; font-size: 12px;">Date: ${new Date().toLocaleString()}</p>
+           <p style="margin:0; font-size: 12px;">Type: ${saleType.toUpperCase()}</p>
+          </div>
+          
+          <table>
+           <thead>
+            <tr style="border-bottom: 1px solid #000;">
+             <th>Item</th>
+             <th class="right">Qty</th>
+             <th class="right">Price</th>
+             <th class="right">Total</th>
+            </tr>
+           </thead>
+           <tbody>
+            ${cart.map(item => {
+             const lineTotal = (item.quantity * item.unitPrice) - ((item.unitPrice * item.quantity * item.discount) / 100);
+             return `
+             <tr>
+              <td>${item.name.substring(0, 15)}</td>
+              <td class="right">${item.quantity}</td>
+              <td class="right">${item.unitPrice.toLocaleString()}</td>
+              <td class="right">${lineTotal.toLocaleString()}</td>
+             </tr>
+            `}).join('')}
+           </tbody>
+          </table>
 
-     if (!itemsResponse.ok) {
-      const error = await itemsResponse.json();
-      setOrderError(`Failed to add items: ${error.error || "Unknown error"}`);
-      return;
-     }
+          <div class="divider"></div>
+          
+          <div class="flex" style="font-size: 14px;">
+           <span>Subtotal:</span>
+           <span>${subtotal.toLocaleString()}</span>
+          </div>
+          <div class="flex" style="font-size: 14px;">
+           <span>Discount:</span>
+           <span>${totalDiscount.toLocaleString()}</span>
+          </div>
+          <div class="flex font-bold" style="font-size: 18px; margin-top: 5px;">
+           <span>Total:</span>
+           <span>${totalDue.toLocaleString()}</span>
+          </div>
+          
+          <div class="divider"></div>
+          
+          <div class="flex" style="font-size: 14px;">
+           <span>Paid:</span>
+           <span>${amountPaid.toLocaleString()}</span>
+          </div>
+          ${balance <= 0 ? `
+          <div class="flex" style="font-size: 14px;">
+           <span>Change:</span>
+           <span>${Math.abs(balance).toLocaleString()}</span>
+          </div>
+          ` : `
+          <div class="flex" style="font-size: 14px;">
+           <span>Balance Due:</span>
+           <span>${balance.toLocaleString()}</span>
+          </div>
+          `}
 
-     alert("Order created successfully!");
+          <div class="footer">
+           <p>Thank you for shopping with us!</p>
+          </div>
+         </body>
+        </html>
+       `;
+
+       printWindow.document.write(receiptHtml);
+       printWindow.document.close();
+       printWindow.focus();
+       
+       // Auto print and close after render
+       setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+       }, 500);
+      } catch (err) {
+       console.error("Printing failed:", err);
+       alert("Could not connect to printer, but order was saved successfully!");
+      }
+     };
+
+     // Execute print
+     printReceipt();
+
      setCart([]);
      setAmountPaid(0);
      setSelectedCustomer("");
@@ -204,6 +325,11 @@ export default function POSPage() {
   const handleAddCustomer = async () => {
    if (!newCustomerName.trim()) {
     alert("Customer name is required");
+    return;
+   }
+
+   if (!newCustomerPhone.trim()) {
+    alert("Customer phone number is required");
     return;
    }
 
@@ -535,7 +661,7 @@ export default function POSPage() {
         />
         <input
          type="text"
-         placeholder="Phone (optional)"
+         placeholder="Phone"
          value={newCustomerPhone}
          onChange={(e) => setNewCustomerPhone(e.target.value)}
          className="w-full px-3 py-2 border border-gray-300 mb-4 focus:ring-2 focus:ring-blue-500"

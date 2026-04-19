@@ -68,12 +68,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!phone) {
+      return NextResponse.json(
+        { error: 'Customer phone number is required' },
+        { status: 400 }
+      );
+    }
+
     const { data, error } = await supabase
       .from('customers')
       .insert([
         {
           name: name.trim(),
-          phone: phone || null,
+          phone: phone.trim(),
           address: address || null,
           customer_type: 'retail',
           is_walk_in: false,

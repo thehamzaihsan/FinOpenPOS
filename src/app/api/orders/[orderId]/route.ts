@@ -37,11 +37,11 @@ export async function GET(
       .select(
         `
         *,
-        customer:customer_id(*),
+        customer:customers(*),
         items:order_items(
           *,
-          product:product_id(*),
-          variant:product_variant_id(*)
+          product:products(*),
+          variant:product_variants(*)
         )
         `
       )

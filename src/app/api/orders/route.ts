@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
       .from('orders')
       .insert([
         {
+          user_id: user.id,
           customer_id: customer_id || null,  // NULL for walk-in
           subtotal: subtotal || 0,
           discount_total: discount_total || 0,
@@ -136,6 +137,7 @@ export async function POST(request: NextRequest) {
     // If items are provided, insert them directly!
     if (items && Array.isArray(items) && items.length > 0) {
       const orderItems = items.map((item: any) => ({
+        user_id: user.id,
         order_id: order.id,
         product_id: item.product_id || null,
         product_variant_id: item.product_variant_id || null,

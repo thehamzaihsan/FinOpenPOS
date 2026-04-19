@@ -16,9 +16,9 @@ export default function RootLayout({
  children: React.ReactNode;
 }) {
  return (
-  <html lang="en">
-   <Analyt></Analyt>
-   <body>
+   <html lang="en" suppressHydrationWarning>
+    <Analyt></Analyt>
+    <body suppressHydrationWarning>
     <main className="h-[95vh]">{children}</main>
     <footer className="text-center text-gray-500 text-xs h-[5vh]">
      &copy; {new Date().getFullYear()}<a 

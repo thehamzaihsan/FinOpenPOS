@@ -44,19 +44,20 @@ export default function OrderDetailPage() {
  const [loading, setLoading] = useState(true);
  const [refunding, setRefunding] = useState(false);
  const [showRefundModal, setShowRefundModal] = useState(false);
- const [refundType, setRefundType] = useState<"full" | "partial">("full");
-  const [refundAmount, setRefundAmount] = useState(0);
+ const [returnedItems, setReturnedItems] = useState<Record<string, number>>({});
 
   useEffect(() => {
    loadOrderData();
   }, [orderId]);
 
   const loadOrderData = async () => {
+   if (!orderId) return;
    try {
     const response = await fetch(`/api/orders/${orderId}`);
     
     if (!response.ok) {
-     throw new Error("Failed to load order");
+     const errorText = await response.text();
+     throw new Error(`Failed to load order: ${response.status} ${errorText}`);
     }
 
     const { data: order } = await response.json();
@@ -69,33 +70,54 @@ export default function OrderDetailPage() {
    }
   };
 
+  const calculateRefundAmount = () => {
+   return items.reduce((sum, item) => {
+    const returnQty = returnedItems[item.id] || 0;
+    const unitPriceAfterDiscount = item.line_total / item.quantity;
+    return sum + (returnQty * unitPriceAfterDiscount);
+   }, 0);
+  };
+
   const handleRefund = async () => {
    if (!order) return;
 
    setRefunding(true);
    try {
-    const refundAmountToProcess = refundType === "full" ? order.amount_paid : refundAmount;
+    const refundAmountToProcess = calculateRefundAmount();
+    const returnedItemsList = items
+      .filter(item => (returnedItems[item.id] || 0) > 0)
+      .map(item => ({
+        order_item_id: item.id,
+        product_id: item.product_id,
+        return_quantity: returnedItems[item.id]
+      }));
+
+    if (returnedItemsList.length === 0) {
+      throw new Error("Please select at least one item to return");
+    }
 
     const response = await fetch(`/api/orders/${orderId}/refund`, {
      method: "POST",
      headers: { "Content-Type": "application/json" },
      body: JSON.stringify({
       refund_amount: refundAmountToProcess,
-      reason: refundType === "full" ? "Full refund" : "Partial refund",
+      returned_items: returnedItemsList,
+      reason: "Product return",
      }),
     });
 
     if (!response.ok) {
      const error = await response.json();
-     throw new Error(error.error || "Failed to process refund");
+     throw new Error(error.error || "Failed to process return");
     }
 
     setShowRefundModal(false);
+    setReturnedItems({});
     loadOrderData();
-    alert("Refund processed successfully");
+    alert("Return processed successfully");
    } catch (error) {
-    console.error("Failed to process refund:", error);
-    alert(`Failed to process refund: ${error instanceof Error ? error.message : "Unknown error"}`);
+    console.error("Failed to process return:", error);
+    alert(`Failed to process return: ${error instanceof Error ? error.message : "Unknown error"}`);
    } finally {
     setRefunding(false);
    }
@@ -288,7 +310,7 @@ export default function OrderDetailPage() {
         onClick={() => setShowRefundModal(true)}
         className="w-full border-2 border-red-600 text-red-600 py-2 hover:bg-red-50 transition-colors font-medium"
        >
-        Refund Order
+        Return Product
        </button>
       )}
 
@@ -315,62 +337,63 @@ export default function OrderDetailPage() {
     </div>
    </div>
 
-   {/* Refund Modal */}
+   {/* Return Modal */}
    {showRefundModal && (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-     <div className="bg-white p-6 w-96 space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900">Process Refund</h3>
+     <div className="bg-white p-6 w-[500px] max-w-[90vw] space-y-4 max-h-[90vh] overflow-y-auto rounded-lg">
+      <h3 className="text-lg font-semibold text-gray-900">Return Product</h3>
 
       <div className="space-y-3">
-       <label className="flex items-center gap-3">
-        <input
-         type="radio"
-         value="full"
-         checked={refundType === "full"}
-         onChange={(e) => setRefundType(e.target.value as "full" | "partial")}
-         className="w-4 h-4"
-        />
-        <span className="text-gray-900">
-         Full Refund (PKR {order.amount_paid.toLocaleString()})
-        </span>
-       </label>
-
-       <label className="flex items-center gap-3">
-        <input
-         type="radio"
-         value="partial"
-         checked={refundType === "partial"}
-         onChange={(e) => setRefundType(e.target.value as "full" | "partial")}
-         className="w-4 h-4"
-        />
-        <span className="text-gray-900">Partial Refund</span>
-       </label>
+       {items.map(item => (
+        <div key={item.id} className="flex items-center justify-between gap-4 p-3 border border-gray-200 rounded">
+         <div>
+          <p className="font-medium text-gray-900">Product {item.product_id.slice(0, 8)}</p>
+          <p className="text-sm text-gray-500">
+           Price: PKR {(item.line_total / item.quantity).toLocaleString()} | Max Qty: {item.quantity}
+          </p>
+         </div>
+         <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-600">Return Qty:</label>
+          <input
+           type="number"
+           min="0"
+           max={item.quantity}
+           value={returnedItems[item.id] || 0}
+           onChange={(e) => {
+            const val = parseInt(e.target.value) || 0;
+            setReturnedItems(prev => ({
+             ...prev,
+             [item.id]: Math.min(Math.max(0, val), item.quantity)
+            }));
+           }}
+           className="w-20 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+          />
+         </div>
+        </div>
+       ))}
       </div>
 
-      {refundType === "partial" && (
-       <input
-        type="number"
-        placeholder="Enter refund amount"
-        value={refundAmount}
-        onChange={(e) => setRefundAmount(parseFloat(e.target.value) || 0)}
-        max={order.amount_paid}
-        className="w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500"
-       />
-      )}
+      <div className="flex justify-between items-center py-2 border-t border-gray-200 mt-4">
+       <span className="font-semibold text-gray-900">Total Refund:</span>
+       <span className="font-bold text-red-600">PKR {calculateRefundAmount().toLocaleString()}</span>
+      </div>
 
       <div className="flex gap-3 pt-4 border-t border-gray-200">
        <button
-        onClick={() => setShowRefundModal(false)}
-        className="flex-1 border border-gray-300 py-2 hover:bg-gray-50 font-medium"
+        onClick={() => {
+         setShowRefundModal(false);
+         setReturnedItems({});
+        }}
+        className="flex-1 border border-gray-300 py-2 hover:bg-gray-50 font-medium rounded"
        >
         Cancel
        </button>
        <button
         onClick={handleRefund}
-        disabled={refunding}
-        className="flex-1 bg-red-600 text-white py-2 hover:bg-red-700 disabled:bg-gray-400 font-medium"
+        disabled={refunding || calculateRefundAmount() === 0}
+        className="flex-1 bg-red-600 text-white py-2 hover:bg-red-700 disabled:bg-gray-400 font-medium rounded"
        >
-        {refunding ? "Processing..." : "Process Refund"}
+        {refunding ? "Processing..." : "Process Return"}
        </button>
       </div>
      </div>

@@ -134,6 +134,7 @@ export async function POST(request: NextRequest) {
       .from('products')
       .insert([
         {
+          user_id: user.id,
           name: name.trim(),
           description: description || null,
           image_url: image_url || null,

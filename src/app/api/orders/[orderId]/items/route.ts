@@ -134,7 +134,7 @@ export async function POST(
       .from('order_items')
       .insert(orderItems);
 
-    if (itemsError) throw itemsError;
+    if (itemsError) throw new Error(itemsError.message);
 
     // Update order totals
     const newSubtotal = order.subtotal + additionalSubtotal;
@@ -156,7 +156,6 @@ export async function POST(
         subtotal: newSubtotal,
         discount_total: newDiscountTotal,
         total_amount: newTotalAmount,
-        balance_due: Math.max(0, newBalanceDue),
         status: newStatus,
         updated_at: new Date().toISOString(),
       })
@@ -164,7 +163,7 @@ export async function POST(
       .select()
       .single();
 
-    if (updateError) throw updateError;
+    if (updateError) throw new Error(updateError.message);
 
     // Fetch complete updated order
     const { data: completeOrder, error: fetchError } = await supabase
@@ -172,18 +171,18 @@ export async function POST(
       .select(
         `
         *,
-        customer:customer_id(*),
+        customer:customers(*),
         items:order_items(
           *,
-          product:product_id(*),
-          variant:product_variant_id(*)
+          product:products(*),
+          variant:product_variants(*)
         )
         `
       )
       .eq('id', orderId)
       .single();
 
-    if (fetchError) throw fetchError;
+    if (fetchError) throw new Error(fetchError.message);
 
     return NextResponse.json(
       {

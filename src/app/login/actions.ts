@@ -20,8 +20,8 @@ export async function login(formData: FormData) {
     return { error: error.message }; // Return the error message
   }
 
-  revalidatePath("/salesman", "layout");
-  redirect("/salesman"); // Redirect on success
+  revalidatePath("/app", "layout");
+  redirect("/app/dashboard"); // Redirect on success
 }
 
 export async function logout() {
@@ -36,7 +36,7 @@ export async function logout() {
   }
 
   // Revalidate paths (if needed)
-  revalidatePath("/salesman", "layout");
+  revalidatePath("/app", "layout");
   revalidatePath("/", "layout");
 
   // Redirect to the login page or home page
@@ -60,8 +60,8 @@ export async function signup(formData: FormData) {
     redirect('/error')
   }
 
-  revalidatePath('/salesman', 'layout')
-  redirect('/salesman')
+  revalidatePath('/app', 'layout')
+  redirect('/app/dashboard')
 }
 
 export async function generateExampleData(user_uid: string) {

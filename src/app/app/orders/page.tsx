@@ -84,10 +84,14 @@ export default function OrdersPage() {
 
  const getStatusBadgeClass = (status: string) => {
   switch (status) {
+   case "paid":
    case "completed":
     return "bg-green-100 text-green-700";
+   case "partial":
+    return "bg-blue-100 text-blue-700";
    case "pending":
     return "bg-yellow-100 text-yellow-700";
+   case "returned":
    case "refunded":
     return "bg-red-100 text-red-700";
    default:
@@ -135,9 +139,10 @@ export default function OrdersPage() {
       className="px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500"
      >
       <option value="all">All Status</option>
-      <option value="completed">Completed</option>
+      <option value="paid">Paid</option>
+      <option value="partial">Partial</option>
       <option value="pending">Pending</option>
-      <option value="refunded">Refunded</option>
+      <option value="refunded">Returned</option>
      </select>
     </div>
    </div>

@@ -23,9 +23,9 @@ export default function LoginPage() {
    const {
     data: { user },
    } = await supabase.auth.getUser();
-   if (user) {
-    router.push("/salesman");
-   } else {
+    if (user) {
+     router.push("/app/dashboard");
+    } else {
     setLoading(false);
    }
   };
