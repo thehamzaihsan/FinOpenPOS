@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getSupabaseClient } from "@/lib/supabase-client";
 import { dataService } from "@/lib/data-service";
 import { Plus, Minus, Trash2, Printer, AlertCircle, X } from "lucide-react";
 
@@ -52,13 +51,11 @@ export default function POSPage() {
  const [showFilters, setShowFilters] = useState(false);
  const [minPrice, setMinPrice] = useState<number>(0);
  const [maxPrice, setMaxPrice] = useState<number>(100000);
- const [inStockOnly, setInStockOnly] = useState(false);
+  const [inStockOnly, setInStockOnly] = useState(false);
 
- const supabase = getSupabaseClient();
-
- useEffect(() => {
-  loadData();
- }, []);
+  useEffect(() => {
+   loadData();
+  }, []);
 
  const loadData = async (forceRefresh = false) => {
   try {
@@ -120,117 +117,125 @@ export default function POSPage() {
   ? balance === 0 
   : selectedCustomer !== "";
 
- const handleCompleteOrder = async () => {
-  setOrderError("");
-  
-  if (cart.length === 0) {
-   setOrderError("Cart is empty");
-   return;
-  }
+  const handleCompleteOrder = async () => {
+   setOrderError("");
+   
+   if (cart.length === 0) {
+    setOrderError("Cart is empty");
+    return;
+   }
 
-  if (!canComplete) {
-   setOrderError("Cannot complete order. Check balance and payment method.");
-   return;
-  }
+   if (!canComplete) {
+    setOrderError("Cannot complete order. Check balance and payment method.");
+    return;
+   }
+
+    try {
+     // Determine status based on payment
+     const orderStatus = amountPaid >= totalDue ? "paid" : "partial";
+     
+     const orderData: any = {
+      subtotal: subtotal,
+      discount_total: totalDiscount,
+      total_amount: totalDue,
+      amount_paid: amountPaid,
+      payment_method: paymentMethod,
+      status: orderStatus,
+      is_khata: balance > 0,
+     };
+
+     // Only add customer_id for retail sales
+     if (saleType === "retail" && selectedCustomer) {
+      orderData.customer_id = selectedCustomer;
+     }
+
+     // Create order via API
+     const orderResponse = await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(orderData),
+     });
+
+     if (!orderResponse.ok) {
+      const error = await orderResponse.json();
+      setOrderError(`Order creation failed: ${error.error || "Unknown error"}`);
+      return;
+     }
+
+     const { data: order } = await orderResponse.json();
+
+     // Add order items via API
+     const orderItems = cart.map((item) => ({
+      product_id: item.productId,
+      quantity: item.quantity,
+      unit_price: item.unitPrice,
+      discount_pct: item.discount,
+      discount_amount: (item.unitPrice * item.quantity * item.discount) / 100,
+      line_total: (item.unitPrice * item.quantity) - ((item.unitPrice * item.quantity * item.discount) / 100),
+     }));
+
+     const itemsResponse = await fetch(`/api/orders/${order.id}/items`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: orderItems }),
+     });
+
+     if (!itemsResponse.ok) {
+      const error = await itemsResponse.json();
+      setOrderError(`Failed to add items: ${error.error || "Unknown error"}`);
+      return;
+     }
+
+     alert("Order created successfully!");
+     setCart([]);
+     setAmountPaid(0);
+     setSelectedCustomer("");
+     setOrderError("");
+     // Invalidate orders cache
+     dataService.invalidateOrdersCache();
+    } catch (error) {
+     console.error("Failed to create order:", error);
+     setOrderError(
+      error instanceof Error ? error.message : "Failed to create order"
+     );
+    }
+  };
+
+  const handleAddCustomer = async () => {
+   if (!newCustomerName.trim()) {
+    alert("Customer name is required");
+    return;
+   }
 
    try {
-    // Determine status based on payment
-    const orderStatus = amountPaid >= totalDue ? "paid" : "partial";
-    
-    const orderData: any = {
-     subtotal: subtotal,
-     discount_total: totalDiscount,
-     total_amount: totalDue,
-     amount_paid: amountPaid,
-     payment_method: paymentMethod,
-     status: orderStatus,
-     is_khata: balance > 0,
-    };
+    const response = await fetch("/api/customers", {
+     method: "POST",
+     headers: { "Content-Type": "application/json" },
+     body: JSON.stringify({
+      name: newCustomerName,
+      phone: newCustomerPhone,
+     }),
+    });
 
-    // Only add customer_id for retail sales
-    if (saleType === "retail" && selectedCustomer) {
-     orderData.customer_id = selectedCustomer;
+    if (!response.ok) {
+     const error = await response.json();
+     throw new Error(error.error || "Failed to create customer");
     }
 
-    const { data: order, error } = await supabase
-     .from("orders")
-     .insert(orderData)
-     .select()
-     .single();
+    const { data: customer } = await response.json();
 
-    if (error) {
-     console.error("Order creation error:", error);
-     const errorMsg = error?.message || error?.msg || JSON.stringify(error) || "Unknown error";
-     setOrderError(`Order creation failed: ${errorMsg}`);
-     return;
-    }
-
-    // Add order items
-    const orderItems = cart.map((item) => ({
-     order_id: order.id,
-     product_id: item.productId,
-     quantity: item.quantity,
-     unit_price: item.unitPrice,
-     discount_pct: item.discount,
-     discount_amount: (item.unitPrice * item.quantity * item.discount) / 100,
-     line_total: (item.unitPrice * item.quantity) - ((item.unitPrice * item.quantity * item.discount) / 100),
-    }));
-
-    const { error: itemsError } = await supabase
-     .from("order_items")
-     .insert(orderItems);
-
-    if (itemsError) {
-     console.error("Order items error:", itemsError);
-     setOrderError(`Failed to add items: ${itemsError.message}`);
-     return;
-    }
-
-    alert("Order created successfully!");
-    setCart([]);
-    setAmountPaid(0);
-    setSelectedCustomer("");
-    setOrderError("");
-    // Invalidate orders cache
-    dataService.invalidateOrdersCache();
+    setCustomers([...customers, customer]);
+    setSelectedCustomer(customer.id);
+    setNewCustomerName("");
+    setNewCustomerPhone("");
+    setShowNewCustomer(false);
+    // Invalidate cache so next load gets fresh data
+    dataService.invalidateCustomersCache();
    } catch (error) {
-    console.error("Failed to create order:", error);
-    setOrderError(
-     error instanceof Error ? error.message : "Failed to create order"
-    );
+    console.error("Failed to add customer:", error);
+    alert(`Failed to add customer: ${error instanceof Error ? error.message : "Unknown error"}`);
    }
- };
-
- const handleAddCustomer = async () => {
-  if (!newCustomerName.trim()) {
-   alert("Customer name is required");
-   return;
-  }
-
-  try {
-   const { data: customer, error } = await supabase
-    .from("customers")
-    .insert({
-     name: newCustomerName,
-     phone: newCustomerPhone,
-    })
-    .select()
-    .single();
-
-   if (error) throw error;
-
-   setCustomers([...customers, customer]);
-   setSelectedCustomer(customer.id);
-   setNewCustomerName("");
-   setNewCustomerPhone("");
-   setShowNewCustomer(false);
-   // Invalidate cache so next load gets fresh data
-   dataService.invalidateCustomersCache();
-  } catch (error) {
-   console.error("Failed to add customer:", error);
-   alert("Failed to add customer");
-  }
- };
+  };
 
  if (loading) {
   return (
