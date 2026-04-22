@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/client";
 import { AlertCircle, CheckCircle, Mail } from "lucide-react";
 
 export default function ForgotPasswordPage() {
@@ -11,10 +11,7 @@ export default function ForgotPasswordPage() {
  const [error, setError] = useState<string | null>(null);
  const [success, setSuccess] = useState(false);
 
- const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
- );
+ const supabase = createClient();
 
  const handleReset = async (e: React.FormEvent) => {
   e.preventDefault();

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/client";
 import { AlertCircle, LogIn } from "lucide-react";
 
 export default function LoginPage() {
@@ -11,12 +11,30 @@ export default function LoginPage() {
  const [password, setPassword] = useState("");
  const [loading, setLoading] = useState(false);
  const [error, setError] = useState<string | null>(null);
+ const [mounted, setMounted] = useState(false);
  const router = useRouter();
+ const supabase = useMemo(() => createClient(), []);
 
- const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
- );
+ useEffect(() => {
+  setMounted(true);
+ }, []);
+
+ useEffect(() => {
+  const checkSession = async () => {
+   const {
+    data: { session },
+   } = await supabase.auth.getSession();
+
+   if (!session) return;
+
+   if (session.user?.email) {
+    const isAdmin = await checkIfAdmin(session.user.email);
+    router.replace(isAdmin ? "/admin/dashboard" : "/app/dashboard");
+   }
+  };
+
+  checkSession();
+ }, [router, supabase]);
 
  const handleLogin = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -30,6 +48,7 @@ export default function LoginPage() {
    });
 
    if (authError) {
+    console.error('Login error:', authError);
     setError(authError.message);
     setLoading(false);
     return;
@@ -37,29 +56,41 @@ export default function LoginPage() {
 
    if (data.user?.email) {
     const isAdmin = await checkIfAdmin(data.user.email);
-    if (isAdmin) {
-     router.push("/admin/dashboard");
-    } else {
-     router.push("/app/dashboard");
-    }
+     if (isAdmin) {
+      router.replace("/admin/dashboard");
+     } else {
+      router.replace("/app/dashboard");
+     }
    }
   } catch (err) {
-   setError("An error occurred. Please try again.");
+   console.error('Login exception:', err);
+   setError(err instanceof Error ? err.message : "An error occurred. Please try again.");
    setLoading(false);
   }
  };
 
  const checkIfAdmin = async (email: string) => {
-  const { data } = await supabase
-   .from("admin_users")
-   .select("id")
-   .eq("email", email)
-   .single();
-  return !!data;
+  try {
+   const { data, error } = await supabase
+    .from("admin_users")
+    .select("id")
+    .eq("email", email)
+    .single();
+   if (error) {
+    console.log('Not admin (expected if user is not admin):', error.message);
+   }
+   return !!data;
+  } catch (err) {
+   console.error('Admin check error:', err);
+   return false;
+  }
  };
 
  return (
   <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
+   {!mounted ? (
+    <div className="text-center">Loading...</div>
+   ) : (
    <div className="bg-white shadow-lg p-8 w-full max-w-md">
     <div className="flex items-center justify-center mb-6">
      <LogIn className="w-8 h-8 text-blue-600 mr-2" />
@@ -131,6 +162,7 @@ export default function LoginPage() {
      </Link>
     </p>
    </div>
+   )}
   </div>
  );
 }

@@ -15,8 +15,8 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (!user || authError) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
       .from('products')
       .select('id')
       .eq('id', product_id)
+      .eq('user_id', user.id)
       .eq('is_active', true)
       .single();
 

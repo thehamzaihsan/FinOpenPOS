@@ -11,6 +11,12 @@ import { createClient } from '@/lib/supabase/server';
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const {
       product_id,
@@ -35,6 +41,7 @@ export async function POST(request: NextRequest) {
       .from('products')
       .select('id')
       .eq('id', product_id)
+      .eq('user_id', user.id)
       .eq('is_active', true)
       .single();
 
@@ -86,6 +93,12 @@ export async function PUT(
 ) {
   try {
     const supabase = await createClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { variantId } = await params;
     const body = await request.json();
 
@@ -104,6 +117,29 @@ export async function PUT(
         updates[field] = body[field];
       }
     });
+
+    // First, get the variant to check if it belongs to user's product
+    const { data: variantCheck, error: checkError } = await supabase
+      .from('product_variants')
+      .select('product_id')
+      .eq('id', variantId)
+      .single();
+
+    if (checkError || !variantCheck) {
+      return NextResponse.json({ error: 'Variant not found' }, { status: 404 });
+    }
+
+    // Verify product belongs to user
+    const { data: productCheck, error: productCheckError } = await supabase
+      .from('products')
+      .select('id')
+      .eq('id', variantCheck.product_id)
+      .eq('user_id', user.id)
+      .single();
+
+    if (productCheckError || !productCheck) {
+      return NextResponse.json({ error: 'Variant not found' }, { status: 404 });
+    }
 
     const { data, error } = await supabase
       .from('product_variants')
@@ -137,7 +173,36 @@ export async function DELETE(
 ) {
   try {
     const supabase = await createClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { variantId } = await params;
+
+    // First, get the variant to check if it belongs to user's product
+    const { data: variantCheck, error: checkError } = await supabase
+      .from('product_variants')
+      .select('product_id')
+      .eq('id', variantId)
+      .single();
+
+    if (checkError || !variantCheck) {
+      return NextResponse.json({ error: 'Variant not found' }, { status: 404 });
+    }
+
+    // Verify product belongs to user
+    const { data: productCheck, error: productCheckError } = await supabase
+      .from('products')
+      .select('id')
+      .eq('id', variantCheck.product_id)
+      .eq('user_id', user.id)
+      .single();
+
+    if (productCheckError || !productCheck) {
+      return NextResponse.json({ error: 'Variant not found' }, { status: 404 });
+    }
 
     // Soft delete
     const { data, error } = await supabase

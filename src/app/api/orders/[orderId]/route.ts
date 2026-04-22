@@ -46,6 +46,7 @@ export async function GET(
         `
       )
       .eq('id', orderId)
+      .eq('user_id', user.id)
       .single();
 
     if (error) {
@@ -101,6 +102,7 @@ export async function PUT(
       .from('orders')
       .select('*')
       .eq('id', orderId)
+      .eq('user_id', user.id)
       .single();
 
     if (fetchError || !currentOrder) {
@@ -184,6 +186,7 @@ export async function PUT(
       .from('orders')
       .update(updateData)
       .eq('id', orderId)
+      .eq('user_id', user.id)
       .select()
       .single();
 

@@ -37,6 +37,7 @@ export async function POST(
       .from('khata_accounts')
       .select('*')
       .eq('id', khataId)
+      .eq('user_id', user.id)
       .eq('is_active', true)
       .single();
 
@@ -105,6 +106,7 @@ export async function POST(
         updated_at: new Date().toISOString(),
       })
       .eq('id', khataId)
+      .eq('user_id', user.id)
       .select(
         `
         *,

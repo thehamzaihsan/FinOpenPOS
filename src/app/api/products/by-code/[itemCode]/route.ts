@@ -35,6 +35,7 @@ export async function GET(
       .from('products')
       .select('*')
       .eq('item_code', itemCode)
+      .eq('user_id', user.id)
       .eq('is_active', true)
       .maybeSingle();
 
@@ -51,7 +52,7 @@ export async function GET(
       });
     }
 
-    // Try to find in product variants
+    // Try to find in product variants (also need to check user_id via product relationship)
     const { data: variant, error: variantError } = await supabase
       .from('product_variants')
       .select(
@@ -69,6 +70,13 @@ export async function GET(
     }
 
     if (variant) {
+      // Verify variant's product belongs to user
+      if (variant.product?.user_id !== user.id) {
+        return NextResponse.json(
+          { error: 'Product not found with this item code' },
+          { status: 404 }
+        );
+      }
       return NextResponse.json({
         success: true,
         type: 'variant',

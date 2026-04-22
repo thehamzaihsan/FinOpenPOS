@@ -16,9 +16,15 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createClient();
 
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (!user || authError) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     let query = supabase
       .from('products')
       .select('*', { count: 'exact' })
+      .eq('user_id', user.id)
       .eq('is_active', true);
 
     if (search) {
@@ -60,8 +66,8 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (!user || authError) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
         `,
         { count: 'exact' }
       )
+      .eq('user_id', user.id)
       .gte('created_at', startOfDay)
       .lt('created_at', endOfDay);
 

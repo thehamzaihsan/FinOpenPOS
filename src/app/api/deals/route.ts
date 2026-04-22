@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
         `,
         { count: 'exact' }
       )
+      .eq('user_id', user.id)
       .eq('is_active', true);
 
     // Apply search filter
@@ -144,6 +145,7 @@ export async function POST(request: NextRequest) {
       .from('deals')
       .insert([
         {
+          user_id: user.id,
           name: name.trim(),
           description: description?.trim() || null,
           is_active: true,

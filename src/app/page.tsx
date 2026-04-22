@@ -222,7 +222,7 @@ export default function Home() {
      </div>
      
      <div className="border-t border-gray-800 pt-8 text-center text-gray-400">
-      <p>&copy; 2024 POS-SY. All rights reserved. Built for Pakistan.</p>
+      <p>&copy; 2026 <a href="https://hamzaihsan.me" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Hamza Ihsan</a>. All rights reserved.</p>
      </div>
     </div>
    </footer>

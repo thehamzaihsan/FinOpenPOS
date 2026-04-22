@@ -58,6 +58,7 @@ export async function POST(
       .from('orders')
       .select('*')
       .eq('id', orderId)
+      .eq('user_id', user.id)
       .single();
 
     if (orderError || !order) {
@@ -149,6 +150,7 @@ export async function POST(
           updated_at: new Date().toISOString(),
         })
         .eq('id', orderId)
+        .eq('user_id', user.id)
         .select()
         .single();
       if (updateError) throw updateError;
@@ -176,6 +178,7 @@ export async function POST(
         updated_at: new Date().toISOString(),
       })
       .eq('id', orderId)
+      .eq('user_id', user.id)
       .select()
       .single();
 

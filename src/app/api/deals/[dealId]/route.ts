@@ -46,6 +46,7 @@ export async function GET(
         `
       )
       .eq('id', dealId)
+      .eq('user_id', user.id)
       .eq('is_active', true)
       .single();
 
@@ -115,7 +116,8 @@ export async function PUT(
     const { error } = await supabase
       .from('deals')
       .update(updateData)
-      .eq('id', dealId);
+      .eq('id', dealId)
+      .eq('user_id', user.id);
 
     if (error) {
       if (error.code === 'PGRST116') {
@@ -141,6 +143,7 @@ export async function PUT(
         `
       )
       .eq('id', dealId)
+      .eq('user_id', user.id)
       .single();
 
     if (fetchError) throw fetchError;
@@ -188,6 +191,7 @@ export async function DELETE(
         updated_at: new Date().toISOString(),
       })
       .eq('id', dealId)
+      .eq('user_id', user.id)
       .select()
       .single();
 

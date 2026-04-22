@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
         `,
         { count: 'exact' }
       )
+      .eq('user_id', user.id)
       .eq('is_active', true);
 
     // Apply search filter
@@ -136,6 +137,7 @@ export async function POST(request: NextRequest) {
       .from('customers')
       .select('id')
       .eq('id', customer_id)
+      .eq('user_id', user.id)
       .eq('is_active', true)
       .single();
 
@@ -151,6 +153,7 @@ export async function POST(request: NextRequest) {
       .from('khata_accounts')
       .select('id')
       .eq('customer_id', customer_id)
+      .eq('user_id', user.id)
       .eq('is_active', true)
       .maybeSingle();
 
@@ -169,6 +172,7 @@ export async function POST(request: NextRequest) {
       .from('khata_accounts')
       .insert([
         {
+          user_id: user.id,
           customer_id,
           opening_balance,
           current_balance: opening_balance,

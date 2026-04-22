@@ -35,20 +35,21 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
 
  const supabase = getSupabaseClient();
 
- useEffect(() => {
-  const checkAuth = async () => {
-   const {
-    data: { session },
-   } = await supabase.auth.getSession();
+  useEffect(() => {
+    const checkAuth = async () => {
+    const {
+     data: { user },
+     error,
+    } = await supabase.auth.getUser();
 
-   if (!session) {
-    router.push("/auth/login");
-    return;
-   }
+    if (error || !user) {
+     router.replace("/auth/login");
+     return;
+    }
 
-   setUserName(session.user?.email?.split("@")[0] || "User");
-   setLoading(false);
-  };
+    setUserName(user.email?.split("@")[0] || "User");
+    setLoading(false);
+    };
 
   checkAuth();
  }, [router, supabase]);

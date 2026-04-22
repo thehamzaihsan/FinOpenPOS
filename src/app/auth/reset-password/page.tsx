@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/client";
 import { AlertCircle, CheckCircle, Lock } from "lucide-react";
 
 function ResetPasswordContent() {
@@ -15,10 +15,7 @@ function ResetPasswordContent() {
  const router = useRouter();
  const searchParams = useSearchParams();
 
- const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
- );
+ const supabase = createClient();
 
  const handleReset = async (e: React.FormEvent) => {
   e.preventDefault();

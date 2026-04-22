@@ -45,6 +45,7 @@ export async function GET(
         `
       )
       .eq('id', khataId)
+      .eq('user_id', user.id)
       .eq('is_active', true)
       .single();
 

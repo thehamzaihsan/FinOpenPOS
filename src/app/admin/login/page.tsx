@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/client";
 import { AlertCircle, Lock } from "lucide-react";
 
 export default function AdminLoginPage() {
@@ -14,10 +14,7 @@ export default function AdminLoginPage() {
  const [error, setError] = useState<string | null>(null);
  const router = useRouter();
 
- const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
- );
+ const supabase = createClient();
 
  const handleLogin = async (e: React.FormEvent) => {
   e.preventDefault();

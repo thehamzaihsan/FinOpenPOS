@@ -35,6 +35,7 @@ export async function GET(
       .from('customers')
       .select('*')
       .eq('id', customerId)
+      .eq('user_id', user.id)
       .eq('is_active', true)
       .single();
 
@@ -63,6 +64,7 @@ export async function GET(
         `
       )
       .eq('customer_id', customerId)
+      .eq('user_id', user.id)
       .eq('is_active', true)
       .maybeSingle();
 

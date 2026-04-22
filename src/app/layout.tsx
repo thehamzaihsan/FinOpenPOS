@@ -3,10 +3,13 @@ import "./globals.css";
 import Analyt from "@/components/Analytics";
 
 export const metadata: Metadata = {
- title: "Smart Khata App",
- description: "Smart Khata App by Hamza I",
- icons: {
-  icon: "/favicon.svg",
+ title: "POS-SY",
+ description: "POS-SY by Hamza I",
+  icons: {
+  icon: [
+    { rel: "icon", type: "image/svg+xml", url: "/favicon.svg" },
+    { rel: "icon", type: "image/x-icon", url: "/favicon.ico" },
+  ],
  },
 };
 
@@ -18,18 +21,17 @@ export default function RootLayout({
  return (
    <html lang="en" suppressHydrationWarning>
     <Analyt></Analyt>
-    <body suppressHydrationWarning>
-    <main className="h-[95vh]">{children}</main>
-    <footer className="text-center text-gray-500 text-xs h-[5vh]">
-     &copy; {new Date().getFullYear()}<a 
+    <body suppressHydrationWarning className="flex flex-col min-h-screen">
+    <main className="flex-1">{children}</main>
+    <footer className="text-center text-gray-500 text-xs py-4 border-t bg-background">
+     &copy; 2026 <a 
       href="https://hamzaihsan.me" 
       target="_blank" 
       rel="noopener noreferrer" 
-      className="text-blue-500 hover:underline ml-2"
+      className="text-blue-500 hover:underline mx-1"
      >
       Hamza Ihsan
-     </a>. All rights reserved. 
-    
+     </a>. All rights reserved.
     </footer>
    </body>
   </html>

@@ -14,12 +14,19 @@ export async function GET(
 ) {
   try {
     const supabase = await createClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { customerId } = await params;
 
     const { data, error } = await supabase
       .from('customers')
       .select('*')
       .eq('id', customerId)
+      .eq('user_id', user.id)
       .eq('is_active', true)
       .single();
 
@@ -47,6 +54,12 @@ export async function PUT(
 ) {
   try {
     const supabase = await createClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { customerId } = await params;
     const body = await request.json();
 
@@ -65,6 +78,7 @@ export async function PUT(
       .from('customers')
       .update(updates)
       .eq('id', customerId)
+      .eq('user_id', user.id)
       .eq('is_active', true)
       .select()
       .single();
@@ -93,6 +107,12 @@ export async function DELETE(
 ) {
   try {
     const supabase = await createClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { customerId } = await params;
 
     // Soft delete
@@ -100,6 +120,7 @@ export async function DELETE(
       .from('customers')
       .update({ is_active: false, updated_at: new Date().toISOString() })
       .eq('id', customerId)
+      .eq('user_id', user.id)
       .eq('is_active', true)
       .select()
       .single();

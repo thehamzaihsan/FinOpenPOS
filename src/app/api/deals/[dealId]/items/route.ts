@@ -38,6 +38,7 @@ export async function POST(
       .from('deals')
       .select('id')
       .eq('id', dealId)
+      .eq('user_id', user.id)
       .eq('is_active', true)
       .single();
 
@@ -147,6 +148,21 @@ export async function DELETE(
       return NextResponse.json(
         { error: 'Must provide at least one item ID to delete' },
         { status: 400 }
+      );
+    }
+
+    // Verify deal exists and belongs to user
+    const { data: dealCheck, error: dealCheckError } = await supabase
+      .from('deals')
+      .select('id')
+      .eq('id', dealId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (dealCheckError || !dealCheck) {
+      return NextResponse.json(
+        { error: 'Deal not found' },
+        { status: 404 }
       );
     }
 

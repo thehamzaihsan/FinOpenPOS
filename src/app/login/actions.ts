@@ -17,11 +17,11 @@ export async function login(formData: FormData) {
 
   if (error) {
     console.log(error);
-    return { error: error.message }; // Return the error message
+    return { error: error.message };
   }
 
   revalidatePath("/app", "layout");
-  redirect("/app/dashboard"); // Redirect on success
+  redirect("/app/dashboard");
 }
 
 export async function logout() {

@@ -201,9 +201,14 @@ export async function POST(request: NextRequest) {
 
     // Insert all valid products
     if (productsToInsert.length > 0) {
+      const productsWithUserId = productsToInsert.map(p => ({
+        ...p,
+        user_id: user.id
+      }));
+      
       const { data, error } = await supabase
         .from('products')
-        .insert(productsToInsert)
+        .insert(productsWithUserId)
         .select();
 
       if (error) {
