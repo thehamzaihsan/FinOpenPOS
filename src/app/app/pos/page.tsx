@@ -53,9 +53,24 @@ export default function POSPage() {
  const [maxPrice, setMaxPrice] = useState<number>(100000);
   const [inStockOnly, setInStockOnly] = useState(false);
 
+  const [shopSettings, setShopSettings] = useState<any>(null);
+
   useEffect(() => {
    loadData();
+   fetchSettings();
   }, []);
+
+  const fetchSettings = async () => {
+   try {
+    const res = await fetch("/api/settings/shop");
+    const json = await res.json();
+    if (json.success && json.data) {
+     setShopSettings(json.data);
+    }
+   } catch (err) {
+    console.error("Failed to load settings:", err);
+   }
+  };
 
  const loadData = async (forceRefresh = false) => {
   try {
@@ -73,18 +88,28 @@ export default function POSPage() {
   }
  };
 
- const addToCart = (product: Product) => {
-  const existingItem = cart.find((item) => item.productId === product.id);
+  const addToCart = (product: Product) => {
+   if (product.quantity <= 0) {
+    setOrderError(`Cannot add ${product.name} to cart: Out of stock`);
+    return;
+   }
 
-  if (existingItem) {
-   setCart(
-    cart.map((item) =>
-     item.productId === product.id
-      ? { ...item, quantity: item.quantity + 1 }
-      : item
-    )
-   );
-  } else {
+   const existingItem = cart.find((item) => item.productId === product.id);
+
+   if (existingItem) {
+    if (existingItem.quantity >= product.quantity) {
+     setOrderError(`Cannot add more ${product.name}: Insufficient stock (Available: ${product.quantity})`);
+     return;
+    }
+    setCart(
+     cart.map((item) =>
+      item.productId === product.id
+       ? { ...item, quantity: item.quantity + 1 }
+       : item
+     )
+    );
+   } else {
+
    const newItem: CartItem = {
     id: `${product.id}-${Date.now()}`,
     productId: product.id,
@@ -202,7 +227,7 @@ export default function POSPage() {
          <head>
           <title>Receipt - ${order.id}</title>
           <style>
-           body { font-family: monospace; width: 300px; margin: 0 auto; padding: 10px; color: #000; }
+           body { font-family: ${shopSettings?.font_family || 'monospace'}; width: 300px; margin: 0 auto; padding: 10px; color: #000; }
            .text-center { text-align: center; }
            .text-right { text-align: right; }
            .font-bold { font-weight: bold; }
@@ -213,6 +238,7 @@ export default function POSPage() {
            th.right, td.right { text-align: right; }
            .header { margin-bottom: 15px; }
            .footer { margin-top: 20px; text-align: center; font-size: 12px; }
+           .logo { max-height: 50px; margin: 0 auto 5px auto; display: block; }
            @media print {
             body { width: 100%; margin: 0; padding: 0; }
            }
@@ -220,12 +246,18 @@ export default function POSPage() {
          </head>
          <body>
           <div class="header text-center">
-           <h2 style="margin:0 0 5px 0;">FinOpenPOS</h2>
+           ${shopSettings?.logo_url ? `<img src="${shopSettings.logo_url}" class="logo" alt="Logo" />` : ''}
+           <h2 style="margin:0 0 5px 0;">${shopSettings?.shop_name || 'FinOpenPOS'}</h2>
+           ${shopSettings?.address ? `<p style="margin:0; font-size: 12px; white-space: pre-wrap;">${shopSettings.address}</p>` : ''}
+           ${shopSettings?.phone ? `<p style="margin:0; font-size: 12px;">Tel: ${shopSettings.phone}</p>` : ''}
+           <div class="divider"></div>
+           <p style="margin:0; font-size: 14px; font-weight: bold;">${shopSettings?.thermal_header || 'Thank you for shopping!'}</p>
            <div class="divider"></div>
            <p style="margin:0; font-size: 12px;">Receipt #: ${order.id.slice(0,8).toUpperCase()}</p>
            <p style="margin:0; font-size: 12px;">Date: ${new Date().toLocaleString()}</p>
            <p style="margin:0; font-size: 12px;">Type: ${saleType.toUpperCase()}</p>
           </div>
+
           
           <table>
            <thead>
@@ -283,8 +315,11 @@ export default function POSPage() {
           </div>
           `}
 
+          <div class="divider"></div>
+
           <div class="footer">
-           <p>Thank you for shopping with us!</p>
+           <p style="font-weight: bold;">${shopSettings?.thermal_footer || 'Thank you for your business!'}</p>
+           ${shopSettings?.return_policy ? `<p style="font-size: 10px; margin-top: 5px; color: #555;">${shopSettings.return_policy}</p>` : ''}
           </div>
          </body>
         </html>

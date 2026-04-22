@@ -104,6 +104,60 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // --- INVENTORY VALIDATION ---
+    if (items && Array.isArray(items) && items.length > 0) {
+      // Collect product and variant IDs for a bulk fetch
+      const productIds = items
+        .filter((i: any) => i.product_id && !i.product_variant_id)
+        .map((i: any) => i.product_id);
+      
+      const variantIds = items
+        .filter((i: any) => i.product_variant_id)
+        .map((i: any) => i.product_variant_id);
+
+      // Fetch base product stocks
+      let productStocks: any[] = [];
+      if (productIds.length > 0) {
+        const { data } = await supabase
+          .from('products')
+          .select('id, quantity, name')
+          .in('id', productIds);
+        productStocks = data || [];
+      }
+
+      // Fetch variant stocks
+      let variantStocks: any[] = [];
+      if (variantIds.length > 0) {
+        const { data } = await supabase
+          .from('product_variants')
+          .select('id, quantity, variant_name')
+          .in('id', variantIds);
+        variantStocks = data || [];
+      }
+
+      // Check each item against available stock
+      for (const item of items) {
+        if (item.product_variant_id) {
+          const vStock = variantStocks.find(v => v.id === item.product_variant_id);
+          if (!vStock || vStock.quantity < item.quantity) {
+            return NextResponse.json(
+              { error: `Insufficient stock for variant ${vStock?.variant_name || item.product_variant_id}. Available: ${vStock?.quantity || 0}` },
+              { status: 400 }
+            );
+          }
+        } else if (item.product_id) {
+          const pStock = productStocks.find(p => p.id === item.product_id);
+          if (!pStock || pStock.quantity < item.quantity) {
+            return NextResponse.json(
+              { error: `Insufficient stock for product ${pStock?.name || item.product_id}. Available: ${pStock?.quantity || 0}` },
+              { status: 400 }
+            );
+          }
+        }
+      }
+    }
+    // --- END INVENTORY VALIDATION ---
+
     // Determine order status
     let orderStatus = status || (amount_paid >= total_amount ? 'paid' : 'partial');
     
@@ -163,15 +217,84 @@ export async function POST(request: NextRequest) {
         // It's a partial failure, but we return the error
         return NextResponse.json({ error: itemsError.message }, { status: 500 });
       }
+
+      // --- INVENTORY DEDUCTION ---
+      for (const item of items) {
+        if (item.product_variant_id) {
+          await supabase.rpc('increment_variant_stock', {
+            variant_id: item.product_variant_id,
+            amount: -item.quantity
+          });
+        } else if (item.product_id) {
+          await supabase.rpc('increment_product_stock', {
+            prod_id: item.product_id,
+            amount: -item.quantity
+          });
+        }
+      }
+      // --- END INVENTORY DEDUCTION ---
     }
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: order,
-      },
-      { status: 201 }
-    );
+      // --- KHATA HANDLING ---
+      if (is_khata && customer_id) {
+        // Find or create khata account
+        let { data: khataAccount } = await supabase
+          .from('khata_accounts')
+          .select('id, current_balance')
+          .eq('customer_id', customer_id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (!khataAccount) {
+          const { data: newAccount, error: createKhataError } = await supabase
+            .from('khata_accounts')
+            .insert({
+              customer_id,
+              user_id: user.id,
+              opening_balance: 0,
+              current_balance: 0
+            })
+            .select()
+            .single();
+          
+          if (createKhataError) {
+            console.error('Failed to create khata account:', createKhataError);
+          } else {
+            khataAccount = newAccount;
+          }
+        }
+
+        if (khataAccount) {
+          const khataAmount = total_amount - amount_paid;
+          const newBalance = (khataAccount.current_balance || 0) + khataAmount;
+
+          // Create transaction
+          await supabase.from('khata_transactions').insert({
+            khata_account_id: khataAccount.id,
+            user_id: user.id,
+            order_id: order.id,
+            amount: khataAmount,
+            transaction_type: 'debit',
+            description: `Order #${order.id.slice(0, 8)}`,
+            balance_after: newBalance
+          });
+
+          // Update balance
+          await supabase
+            .from('khata_accounts')
+            .update({ current_balance: newBalance, updated_at: new Date().toISOString() })
+            .eq('id', khataAccount.id);
+        }
+      }
+      // --- END KHATA HANDLING ---
+
+      return NextResponse.json(
+        {
+          success: true,
+          data: order,
+        },
+        { status: 201 }
+      );
   } catch (error) {
     console.error('Order creation exception:', error);
     return NextResponse.json(

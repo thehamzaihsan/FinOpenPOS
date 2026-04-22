@@ -35,11 +35,15 @@ export default function DashboardPage() {
 
  const loadDashboardData = async () => {
   try {
+   const { data: { user } } = await supabase.auth.getUser();
+   if (!user) return;
+
    // Get today's stats
    const today = new Date().toISOString().split("T")[0];
    const { data: todayOrders } = await supabase
     .from("orders")
     .select("*")
+    .eq("user_id", user.id)
     .gte("created_at", today) as any;
 
    const todaysSalesTotal = (todayOrders || []).reduce(
@@ -51,10 +55,11 @@ export default function DashboardPage() {
    const { data: khataAccounts } = await supabase
     .from("khata_accounts")
     .select("*")
-    .gt("balance", 0) as any;
+    .eq("user_id", user.id)
+    .gt("current_balance", 0) as any;
 
    const outstandingTotal = (khataAccounts || []).reduce(
-    (sum: number, acc: any) => sum + (acc.balance || 0),
+    (sum: number, acc: any) => sum + (acc.current_balance || 0),
     0
    );
 
@@ -79,6 +84,7 @@ export default function DashboardPage() {
     const { data: dayOrders } = await supabase
      .from("orders")
      .select("*")
+     .eq("user_id", user.id)
      .gte("created_at", dateStr)
      .lt("created_at", new Date(date.getTime() + 86400000).toISOString()) as any;
 
@@ -98,6 +104,7 @@ export default function DashboardPage() {
    const { data: orders } = await supabase
     .from("orders")
     .select("*, customers(*)")
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(5) as any;
 
@@ -107,7 +114,9 @@ export default function DashboardPage() {
    const { data: monthOrders } = await supabase
     .from("orders")
     .select("*, order_items(*)")
+    .eq("user_id", user.id)
     .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()) as any;
+
 
    const productMap = new Map();
    (monthOrders || []).forEach((order: any) => {

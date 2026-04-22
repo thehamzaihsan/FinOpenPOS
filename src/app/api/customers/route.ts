@@ -108,6 +108,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // --- AUTOMATIC KHATA ACCOUNT CREATION ---
+    // Every retail customer automatically gets a khata account to track balance
+    try {
+      await supabase
+        .from('khata_accounts')
+        .insert({
+          user_id: user.id,
+          customer_id: data.id,
+          opening_balance: 0,
+          current_balance: 0,
+          is_active: true
+        });
+    } catch (khataError) {
+      console.error('Failed to auto-create khata account for customer:', khataError);
+    }
+    // --- END AUTOMATIC KHATA ---
+
     return NextResponse.json({ success: true, data }, { status: 201 });
   } catch (error) {
     console.error('Customer creation error:', error);

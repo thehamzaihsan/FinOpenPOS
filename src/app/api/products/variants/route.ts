@@ -97,6 +97,7 @@ export async function POST(request: NextRequest) {
       .from('product_variants')
       .insert([
         {
+          user_id: user.id, // Explicitly include user_id
           product_id,
           variant_name: variant_name.trim(),
           item_code: item_code.trim(),

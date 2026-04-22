@@ -21,6 +21,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Verify user is active
+    const { data: profile } = await supabase
+      .from('users')
+      .select('is_active')
+      .eq('id', user.id)
+      .single();
+    
+    if (profile && !profile.is_active) {
+       return NextResponse.json({ error: 'Account suspended' }, { status: 403 });
+    }
+
     let query = supabase
       .from('products')
       .select('*', { count: 'exact' })

@@ -77,7 +77,9 @@ export async function POST(
     }
 
     // Calculate new balance
-    const balanceChange = transaction_type === 'debit' ? -amount : amount;
+    // Debit = Customer owes more (Balance increases)
+    // Credit = Customer paid back (Balance decreases)
+    const balanceChange = transaction_type === 'debit' ? amount : -amount;
     const newBalance = account.current_balance + balanceChange;
 
     // Create transaction
@@ -86,6 +88,7 @@ export async function POST(
       .insert([
         {
           khata_account_id: khataId,
+          user_id: user.id, // Ensure user_id is included for multi-tenancy
           order_id: order_id || null,
           amount,
           transaction_type,

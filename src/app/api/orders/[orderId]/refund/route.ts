@@ -82,6 +82,47 @@ export async function POST(
     const newAmountPaid = order.amount_paid - refund_amount;
     const newBalanceDue = order.total_amount - newAmountPaid;
 
+    // --- KHATA REFUND ADJUSTMENT ---
+    if (order.is_khata && order.customer_id) {
+      const { data: khataAccount } = await supabase
+        .from('khata_accounts')
+        .select('id, current_balance')
+        .eq('customer_id', order.customer_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (khataAccount) {
+        // If we refund money, the customer's debt (current_balance) actually increases 
+        // because we are giving back the cash they paid, so more is owed on the order.
+        // HOWEVER, if we are returning items, the debt decreases.
+        // Let's see how the user intends this. 
+        // Usually, a refund on a Khata order means:
+        // 1. Give cash back (increases debt) OR 
+        // 2. Reduce debt (credit the account)
+        
+        // If returned_items are NOT present, it's a cash refund.
+        if (!returned_items || returned_items.length === 0) {
+          const newKhataBalance = khataAccount.current_balance + refund_amount;
+          
+          await supabase.from('khata_transactions').insert({
+            khata_account_id: khataAccount.id,
+            user_id: user.id,
+            order_id: orderId,
+            amount: refund_amount,
+            transaction_type: 'debit',
+            description: `Refund adjustment (Cash back) for Order #${orderId.slice(0, 8)}`,
+            balance_after: newKhataBalance
+          });
+
+          await supabase
+            .from('khata_accounts')
+            .update({ current_balance: newKhataBalance, updated_at: new Date().toISOString() })
+            .eq('id', khataAccount.id);
+        }
+      }
+    }
+    // --- END KHATA REFUND ADJUSTMENT ---
+
     // Determine new status
     let newStatus = 'pending';
     if (newAmountPaid === 0 && order.total_amount === 0) {
@@ -119,18 +160,19 @@ export async function POST(
             
             total_deduction += orderItem.line_total - updatedTotal;
 
-            // Restock product
+            // Restock product/variant
             if (item.product_id) {
-              const { data: prod } = await supabase
-                .from('products')
-                .select('quantity')
-                .eq('id', item.product_id)
-                .single();
-              if (prod) {
-                await supabase
-                  .from('products')
-                  .update({ quantity: prod.quantity + item.return_quantity })
-                  .eq('id', item.product_id);
+              // Check if it was a variant return (order_item might have product_variant_id)
+              if (orderItem.product_variant_id) {
+                await supabase.rpc('increment_variant_stock', {
+                  variant_id: orderItem.product_variant_id,
+                  amount: item.return_quantity
+                });
+              } else {
+                await supabase.rpc('increment_product_stock', {
+                  prod_id: item.product_id,
+                  amount: item.return_quantity
+                });
               }
             }
           }
@@ -139,6 +181,44 @@ export async function POST(
 
       const newOrderTotal = order.total_amount - total_deduction;
       const newBalanceDue = newOrderTotal - newAmountPaid;
+
+      // --- KHATA ITEM RETURN ADJUSTMENT ---
+      if (order.is_khata && order.customer_id) {
+        const { data: khataAccount } = await supabase
+          .from('khata_accounts')
+          .select('id, current_balance')
+          .eq('customer_id', order.customer_id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (khataAccount) {
+          // deduction reduces the total debt.
+          // cash refund increases the debt.
+          // net change = refund_amount - total_deduction? 
+          // Example: Order 1000, Paid 800, Debt 200.
+          // Return item worth 100. Refund 0. New Total 900. New Paid 800. New Debt 100. (Reduced by 100)
+          // Return item worth 100. Refund 50. New Total 900. New Paid 750. New Debt 150. (Reduced by 50)
+          
+          const netCredit = total_deduction - refund_amount;
+          const newKhataBalance = khataAccount.current_balance - netCredit;
+
+          await supabase.from('khata_transactions').insert({
+            khata_account_id: khataAccount.id,
+            user_id: user.id,
+            order_id: orderId,
+            amount: Math.abs(netCredit),
+            transaction_type: netCredit >= 0 ? 'credit' : 'debit',
+            description: `Item return adjustment for Order #${orderId.slice(0, 8)}`,
+            balance_after: newKhataBalance
+          });
+
+          await supabase
+            .from('khata_accounts')
+            .update({ current_balance: newKhataBalance, updated_at: new Date().toISOString() })
+            .eq('id', khataAccount.id);
+        }
+      }
+      // --- END KHATA ITEM RETURN ADJUSTMENT ---
 
       const { data: updatedOrder, error: updateError } = await supabase
         .from('orders')

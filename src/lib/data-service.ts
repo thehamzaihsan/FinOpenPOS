@@ -10,6 +10,17 @@ export class DataService {
   private supabase = getSupabaseClient();
 
   /**
+   * Helper to ensure user context is available and apply isolation at the client level.
+   * Note: RLS should catch this in the database, but applying the filter ensures safety
+   * even if RLS is not properly applied.
+   */
+  private async getUserId() {
+    const { data: { user }, error } = await this.supabase.auth.getUser();
+    if (error || !user) throw new Error("Unauthorized");
+    return user.id;
+  }
+
+  /**
    * Fetch products with cache (5 min TTL)
    */
   async getProducts(forceRefresh = false) {
@@ -21,9 +32,11 @@ export class DataService {
     }
 
     try {
+      const userId = await this.getUserId();
       const { data, error } = await this.supabase
         .from('products')
         .select('*')
+        .eq('user_id', userId)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
@@ -49,9 +62,11 @@ export class DataService {
     }
 
     try {
+      const userId = await this.getUserId();
       const { data, error } = await this.supabase
         .from('customers')
         .select('*')
+        .eq('user_id', userId)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
@@ -77,9 +92,11 @@ export class DataService {
     }
 
     try {
+      const userId = await this.getUserId();
       const { data, error } = await this.supabase
         .from('customers')
         .select('*')
+        .eq('user_id', userId)
         .eq('id', customerId)
         .single();
 
@@ -105,9 +122,11 @@ export class DataService {
     }
 
     try {
+      const userId = await this.getUserId();
       const { data, error } = await this.supabase
         .from('orders')
         .select('*')
+        .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -132,9 +151,11 @@ export class DataService {
     }
 
     try {
+      const userId = await this.getUserId();
       const { data, error } = await this.supabase
         .from('orders')
         .select('*')
+        .eq('user_id', userId)
         .eq('id', orderId)
         .single();
 
@@ -160,9 +181,11 @@ export class DataService {
     }
 
     try {
+      const userId = await this.getUserId();
       const { data, error } = await this.supabase
         .from('deals')
         .select('*')
+        .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -185,9 +208,11 @@ export class DataService {
     if (cached) return cached;
 
     try {
+      const userId = await this.getUserId();
       const { data, error } = await this.supabase
         .from('reports')
         .select('*')
+        .eq('user_id', userId)
         .eq('type', type)
         .single();
 

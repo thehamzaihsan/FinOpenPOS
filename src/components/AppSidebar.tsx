@@ -14,6 +14,7 @@ import {
  LogOut,
  Menu,
  X,
+ Settings as SettingsIcon,
 } from "lucide-react";
 
 const navItems = [
@@ -24,6 +25,7 @@ const navItems = [
  { label: "Deals", href: "/app/deals", icon: Zap },
  { label: "Customers", href: "/app/customers", icon: Users },
  { label: "Reports", href: "/app/reports", icon: BarChart3 },
+ { label: "Customizer", href: "/app/customizer", icon: SettingsIcon },
 ];
 
 export function AppSidebar({ children }: { children: React.ReactNode }) {
