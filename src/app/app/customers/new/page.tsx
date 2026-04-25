@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { getSupabaseClient } from "@/lib/supabase-client";
+import pb from "@/lib/pb";
 import { ArrowLeft } from "lucide-react";
 
 export default function NewCustomerPage() {
@@ -15,8 +15,6 @@ export default function NewCustomerPage() {
   phone: "",
   address: "",
  });
-
- const supabase = getSupabaseClient();
 
  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
   const { name, value } = e.target;
@@ -37,26 +35,19 @@ export default function NewCustomerPage() {
      return;
     }
 
-    const response = await fetch("/api/customers", {
-     method: "POST",
-     headers: { "Content-Type": "application/json" },
-     body: JSON.stringify({
+    await pb.collection('customers').create({
       name: formData.name,
       phone: formData.phone,
       address: formData.address,
-     }),
+      customer_type: 'retail',
+      is_active: true,
     });
-
-    if (!response.ok) {
-     const error = await response.json();
-     throw new Error(error.error || "Failed to create customer");
-    }
 
     alert("Customer created successfully!");
     router.push("/app/customers");
-   } catch (error) {
+   } catch (error: any) {
     console.error("Failed to create customer:", error);
-    alert(`Failed to create customer: ${error instanceof Error ? error.message : "Unknown error"}`);
+    alert(`Failed to create customer: ${error.message || "Unknown error"}`);
    } finally {
     setLoading(false);
    }

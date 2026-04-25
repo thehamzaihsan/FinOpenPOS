@@ -1,0 +1,153 @@
+[
+  {
+    "name": "customers",
+    "type": "base",
+    "schema": [
+      { "name": "name", "type": "text", "required": true },
+      { "name": "phone", "type": "text" },
+      { "name": "address", "type": "text" },
+      { "name": "customer_type", "type": "select", "options": { "values": ["walk_in", "retail"] } },
+      { "name": "is_walk_in", "type": "bool" },
+      { "name": "is_active", "type": "bool" }
+    ]
+  },
+  {
+    "name": "products",
+    "type": "base",
+    "schema": [
+      { "name": "name", "type": "text", "required": true },
+      { "name": "description", "type": "text" },
+      { "name": "image_url", "type": "url" },
+      { "name": "purchase_price", "type": "number", "required": true },
+      { "name": "sale_price", "type": "number", "required": true },
+      { "name": "quantity", "type": "number", "required": true },
+      { "name": "unit", "type": "select", "options": { "values": ["piece", "dozen", "kg", "packet", "litre", "meter"] } },
+      { "name": "item_code", "type": "text" },
+      { "name": "min_discount", "type": "number" },
+      { "name": "max_discount", "type": "number" },
+      { "name": "is_active", "type": "bool" }
+    ]
+  },
+  {
+    "name": "product_variants",
+    "type": "base",
+    "schema": [
+      { "name": "product", "type": "relation", "required": true, "options": { "collectionId": "products", "cascadeDelete": true } },
+      { "name": "variant_name", "type": "text", "required": true },
+      { "name": "item_code", "type": "text" },
+      { "name": "purchase_price", "type": "number" },
+      { "name": "sale_price", "type": "number" },
+      { "name": "quantity", "type": "number", "required": true },
+      { "name": "min_discount", "type": "number" },
+      { "name": "max_discount", "type": "number" },
+      { "name": "is_active", "type": "bool" }
+    ]
+  },
+  {
+    "name": "deals",
+    "type": "base",
+    "schema": [
+      { "name": "name", "type": "text", "required": true },
+      { "name": "description", "type": "text" },
+      { "name": "is_active", "type": "bool" }
+    ]
+  },
+  {
+    "name": "deal_items",
+    "type": "base",
+    "schema": [
+      { "name": "deal", "type": "relation", "required": true, "options": { "collectionId": "deals", "cascadeDelete": true } },
+      { "name": "product", "type": "relation", "options": { "collectionId": "products" } },
+      { "name": "product_variant", "type": "relation", "options": { "collectionId": "product_variants" } },
+      { "name": "quantity", "type": "number", "required": true }
+    ]
+  },
+  {
+    "name": "orders",
+    "type": "base",
+    "schema": [
+      { "name": "customer", "type": "relation", "options": { "collectionId": "customers" } },
+      { "name": "subtotal", "type": "number", "required": true },
+      { "name": "discount_total", "type": "number" },
+      { "name": "total_amount", "type": "number", "required": true },
+      { "name": "amount_paid", "type": "number", "required": true },
+      { "name": "status", "type": "select", "options": { "values": ["pending", "paid", "partial", "refunded"] } },
+      { "name": "payment_method", "type": "select", "options": { "values": ["cash", "card", "bank_transfer", "khata"] } },
+      { "name": "notes", "type": "text" },
+      { "name": "is_khata", "type": "bool" }
+    ]
+  },
+  {
+    "name": "order_items",
+    "type": "base",
+    "schema": [
+      { "name": "order", "type": "relation", "required": true, "options": { "collectionId": "orders", "cascadeDelete": true } },
+      { "name": "product", "type": "relation", "options": { "collectionId": "products" } },
+      { "name": "product_variant", "type": "relation", "options": { "collectionId": "product_variants" } },
+      { "name": "quantity", "type": "number", "required": true },
+      { "name": "unit_price", "type": "number", "required": true },
+      { "name": "discount_pct", "type": "number" },
+      { "name": "discount_amount", "type": "number" },
+      { "name": "line_total", "type": "number", "required": true }
+    ]
+  },
+  {
+    "name": "khata_accounts",
+    "type": "base",
+    "schema": [
+      { "name": "customer", "type": "relation", "required": true, "options": { "collectionId": "customers", "cascadeDelete": true } },
+      { "name": "opening_balance", "type": "number" },
+      { "name": "current_balance", "type": "number", "required": true },
+      { "name": "is_active", "type": "bool" }
+    ]
+  },
+  {
+    "name": "khata_transactions",
+    "type": "base",
+    "schema": [
+      { "name": "khata_account", "type": "relation", "required": true, "options": { "collectionId": "khata_accounts", "cascadeDelete": true } },
+      { "name": "order", "type": "relation", "options": { "collectionId": "orders" } },
+      { "name": "amount", "type": "number", "required": true },
+      { "name": "transaction_type", "type": "select", "options": { "values": ["debit", "credit"] } },
+      { "name": "description", "type": "text" },
+      { "name": "balance_after", "type": "number" }
+    ]
+  },
+  {
+    "name": "expenses",
+    "type": "base",
+    "schema": [
+      { "name": "category", "type": "text" },
+      { "name": "amount", "type": "number", "required": true },
+      { "name": "description", "type": "text" },
+      { "name": "expense_date", "type": "date", "required": true }
+    ]
+  },
+  {
+    "name": "cash_summary",
+    "type": "base",
+    "schema": [
+      { "name": "summary_date", "type": "date", "required": true },
+      { "name": "total_cash_in", "type": "number" },
+      { "name": "total_cash_out", "type": "number" },
+      { "name": "total_expenses", "type": "number" },
+      { "name": "net_cash", "type": "number" }
+    ]
+  },
+  {
+    "name": "shop_settings",
+    "type": "base",
+    "schema": [
+      { "name": "shop_name", "type": "text" },
+      { "name": "phone", "type": "text" },
+      { "name": "address", "type": "text" },
+      { "name": "return_policy", "type": "text" },
+      { "name": "logo_url", "type": "url" },
+      { "name": "font_family", "type": "text" },
+      { "name": "thermal_header", "type": "text" },
+      { "name": "thermal_footer", "type": "text" },
+      { "name": "standard_header", "type": "text" },
+      { "name": "standard_footer", "type": "text" }
+    ]
+  }
+]

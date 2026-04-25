@@ -1,5 +1,5 @@
 /**
- * POS-SY Database Utilities
+ * POS-SYS Database Utilities
  * Common functions for database operations
  */
 // @ts-nocheck

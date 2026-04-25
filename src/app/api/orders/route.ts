@@ -1,305 +1,107 @@
-/**
- * Orders API - List & Create
- * GET: List orders with filtering
- * POST: Create new order
- */
+import { NextResponse, NextRequest } from "next/server";
+import PocketBase from "pocketbase";
 
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+async function getAdminClient(request: NextRequest) {
+  const email = request.headers.get("x-pb-email") || "";
+  const password = request.headers.get("x-pb-password") || "";
+  const client = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL || "http://127.0.0.1:8090");
+  await client.admins.authWithPassword(email, password);
+  return client;
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
-    const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get('pageSize') || '10')));
-    const status = searchParams.get('status');
-    const customerId = searchParams.get('customerId');
-
-    const supabase = await createClient();
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    let query = supabase
-      .from('orders')
-      .select('*,customer:customers(*),items:order_items(*)', { count: 'exact' })
-      .eq('user_id', user.id);
-
-    if (status) {
-      query = query.eq('status', status);
-    }
-
-    if (customerId) {
-      query = query.eq('customer_id', customerId);
-    }
-
-    query = query.order('created_at', { ascending: false });
-
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
-
-    const { data, count, error } = await query.range(from, to);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: data || [],
-      pagination: {
-        total: count || 0,
-        page,
-        pageSize,
-        totalPages: Math.ceil((count || 0) / pageSize),
-      },
+    const pb = await getAdminClient(request);
+    const orders = await pb.collection("orders").getFullList({
+      sort: "-created",
+      expand: "customer",
     });
+    return NextResponse.json({ success: true, data: orders });
   } catch (error) {
-    console.error('Orders list error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch orders' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Failed to fetch orders" }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const pb = await getAdminClient(request);
     const body = await request.json();
-    const {
-      customer_id,
-      subtotal,
-      discount_total,
-      total_amount,
-      amount_paid,
-      payment_method,
-      status,
-      is_khata,
-      notes,
-      items,
-    } = body;
+    const { items, customer, is_khata, payment_method, total_amount } = body;
 
-    // Validate required fields
-    if (total_amount === undefined || amount_paid === undefined) {
-      return NextResponse.json(
-        { error: 'total_amount and amount_paid are required' },
-        { status: 400 }
-      );
+    if (!items || items.length === 0) {
+      return NextResponse.json({ success: false, error: "Order items required" }, { status: 400 });
     }
 
-    if (typeof total_amount !== 'number' || typeof amount_paid !== 'number') {
-      return NextResponse.json(
-        { error: 'Price fields must be numbers' },
-        { status: 400 }
-      );
-    }
+    const orderItems = [];
+    for (const item of items) {
+      const product = await pb.collection("products").getOne(item.product);
 
-    const supabase = await createClient();
-
-    // Verify auth since RLS requires it
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // --- INVENTORY VALIDATION ---
-    if (items && Array.isArray(items) && items.length > 0) {
-      // Collect product and variant IDs for a bulk fetch
-      const productIds = items
-        .filter((i: any) => i.product_id && !i.product_variant_id)
-        .map((i: any) => i.product_id);
-      
-      const variantIds = items
-        .filter((i: any) => i.product_variant_id)
-        .map((i: any) => i.product_variant_id);
-
-      // Fetch base product stocks
-      let productStocks: any[] = [];
-      if (productIds.length > 0) {
-        const { data } = await supabase
-          .from('products')
-          .select('id, quantity, name')
-          .in('id', productIds);
-        productStocks = data || [];
+      if (product.stock < item.quantity) {
+        return NextResponse.json({
+          success: false,
+          error: `Insufficient stock for ${product.name}. Available: ${product.stock}`
+        }, { status: 400 });
       }
 
-      // Fetch variant stocks
-      let variantStocks: any[] = [];
-      if (variantIds.length > 0) {
-        const { data } = await supabase
-          .from('product_variants')
-          .select('id, quantity, variant_name')
-          .in('id', variantIds);
-        variantStocks = data || [];
-      }
+      await pb.collection("products").update(item.product, {
+        stock: product.stock - item.quantity,
+      });
 
-      // Check each item against available stock
-      for (const item of items) {
-        if (item.product_variant_id) {
-          const vStock = variantStocks.find(v => v.id === item.product_variant_id);
-          if (!vStock || vStock.quantity < item.quantity) {
-            return NextResponse.json(
-              { error: `Insufficient stock for variant ${vStock?.variant_name || item.product_variant_id}. Available: ${vStock?.quantity || 0}` },
-              { status: 400 }
-            );
-          }
-        } else if (item.product_id) {
-          const pStock = productStocks.find(p => p.id === item.product_id);
-          if (!pStock || pStock.quantity < item.quantity) {
-            return NextResponse.json(
-              { error: `Insufficient stock for product ${pStock?.name || item.product_id}. Available: ${pStock?.quantity || 0}` },
-              { status: 400 }
-            );
-          }
-        }
-      }
-    }
-    // --- END INVENTORY VALIDATION ---
-
-    // Determine order status
-    let orderStatus = status || (amount_paid >= total_amount ? 'paid' : 'partial');
-    
-    // Ensure status is valid
-    if (!['pending', 'paid', 'partial', 'refunded'].includes(orderStatus)) {
-      orderStatus = amount_paid >= total_amount ? 'paid' : 'partial';
-    }
-
-    // Calculate balance
-    const balance = total_amount - amount_paid;
-
-    // Create order (customer_id can be null for walk-in)
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .insert([
-        {
-          user_id: user.id,
-          customer_id: customer_id || null,  // NULL for walk-in
-          subtotal: subtotal || 0,
-          discount_total: discount_total || 0,
-          total_amount,
-          amount_paid,
-          payment_method: payment_method || 'cash',
-          status: orderStatus,
-          is_khata: balance > 0 && customer_id ? true : false,  // Only khata if customer exists
-          notes: notes || null,
-        },
-      ])
-      .select()
-      .single();
-
-    if (orderError) {
-      console.error('Order creation error:', orderError);
-      return NextResponse.json({ error: orderError.message }, { status: 500 });
-    }
-
-    // If items are provided, insert them directly!
-    if (items && Array.isArray(items) && items.length > 0) {
-      const orderItems = items.map((item: any) => ({
-        user_id: user.id,
-        order_id: order.id,
-        product_id: item.product_id || null,
-        product_variant_id: item.product_variant_id || null,
+      orderItems.push({
+        order: "",
+        product: item.product,
         quantity: item.quantity,
         unit_price: item.unit_price,
-        discount_pct: item.discount_pct || 0,
-        discount_amount: item.discount_amount || 0,
-        line_total: item.line_total || 0,
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
-
-      if (itemsError) {
-        console.error('Order items creation error:', itemsError);
-        // It's a partial failure, but we return the error
-        return NextResponse.json({ error: itemsError.message }, { status: 500 });
-      }
-
-      // --- INVENTORY DEDUCTION ---
-      for (const item of items) {
-        if (item.product_variant_id) {
-          await supabase.rpc('increment_variant_stock', {
-            variant_id: item.product_variant_id,
-            amount: -item.quantity
-          });
-        } else if (item.product_id) {
-          await supabase.rpc('increment_product_stock', {
-            prod_id: item.product_id,
-            amount: -item.quantity
-          });
-        }
-      }
-      // --- END INVENTORY DEDUCTION ---
+        total_price: item.total_price,
+      });
     }
 
-      // --- KHATA HANDLING ---
-      if (is_khata && customer_id) {
-        // Find or create khata account
-        let { data: khataAccount } = await supabase
-          .from('khata_accounts')
-          .select('id, current_balance')
-          .eq('customer_id', customer_id)
-          .eq('user_id', user.id)
-          .maybeSingle();
+    const order = await pb.collection("orders").create({
+      customer: customer || null,
+      total_amount: total_amount || 0,
+      payment_method: payment_method || "cash",
+      status: "paid",
+      is_khata: is_khata || false,
+      is_active: true,
+    });
 
-        if (!khataAccount) {
-          const { data: newAccount, error: createKhataError } = await supabase
-            .from('khata_accounts')
-            .insert({
-              customer_id,
-              user_id: user.id,
-              opening_balance: 0,
-              current_balance: 0
-            })
-            .select()
-            .single();
-          
-          if (createKhataError) {
-            console.error('Failed to create khata account:', createKhataError);
-          } else {
-            khataAccount = newAccount;
-          }
-        }
+    for (const item of orderItems) {
+      item.order = order.id;
+      await pb.collection("order_items").create(item);
+    }
 
-        if (khataAccount) {
-          const khataAmount = total_amount - amount_paid;
-          const newBalance = (khataAccount.current_balance || 0) + khataAmount;
+    if (is_khata && customer) {
+      try {
+        let accounts = await pb.collection("khata_accounts").getFullList({
+          filter: `customer = "${customer}"`,
+        });
 
-          // Create transaction
-          await supabase.from('khata_transactions').insert({
-            khata_account_id: khataAccount.id,
-            user_id: user.id,
-            order_id: order.id,
-            amount: khataAmount,
-            transaction_type: 'debit',
-            description: `Order #${order.id.slice(0, 8)}`,
-            balance_after: newBalance
+        if (!accounts[0]) {
+          const newAccount = await pb.collection("khata_accounts").create({
+            customer: customer,
+            balance: total_amount || 0,
           });
-
-          // Update balance
-          await supabase
-            .from('khata_accounts')
-            .update({ current_balance: newBalance, updated_at: new Date().toISOString() })
-            .eq('id', khataAccount.id);
+          accounts = [newAccount];
+        } else {
+          await pb.collection("khata_accounts").update(accounts[0].id, {
+            balance: (accounts[0].balance || 0) + (total_amount || 0),
+          });
         }
-      }
-      // --- END KHATA HANDLING ---
 
-      return NextResponse.json(
-        {
-          success: true,
-          data: order,
-        },
-        { status: 201 }
-      );
-  } catch (error) {
-    console.error('Order creation exception:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to create order' },
-      { status: 500 }
-    );
+        await pb.collection("khata_transactions").create({
+          account: accounts[0].id,
+          amount: total_amount || 0,
+          type: "debit",
+          note: `Order #${order.id}`,
+        });
+      } catch (e) {
+        console.error("Khata update failed:", e);
+      }
+    }
+
+    return NextResponse.json({ success: true, data: order });
+  } catch (error: any) {
+    console.error("Order creation error:", error);
+    return NextResponse.json({ success: false, error: error.message || "Failed to create order" }, { status: 500 });
   }
 }

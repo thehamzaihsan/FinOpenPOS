@@ -1,5 +1,5 @@
 -- ============================================================
--- POS-SY | Complete Supabase Migration
+-- POS-SYS | Complete Supabase Migration
 -- Version: 1.0
 -- Run this entire file in Supabase SQL Editor
 -- ============================================================
@@ -319,7 +319,7 @@ FOR EACH ROW EXECUTE FUNCTION flag_order_as_khata();
 INSERT INTO users (email, name, role, is_active)
 VALUES (
     COALESCE(current_setting('app.admin_email', true), 'admin@pos-sy.dev'),
-    COALESCE(current_setting('app.admin_name', true), 'POS-SY Admin'),
+    COALESCE(current_setting('app.admin_name', true), 'POS-SYS Admin'),
     'admin',
     true
 )

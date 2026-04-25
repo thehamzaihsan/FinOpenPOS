@@ -3,15 +3,13 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { getSupabaseClient } from "@/lib/supabase-client";
+import pb from "@/lib/pb";
 import { dataService } from "@/lib/data-service";
 import { Plus, Edit2, Trash2, RefreshCw } from "lucide-react";
 
 export default function DealsPage() {
  const [deals, setDeals] = useState<any[]>([]);
  const [loading, setLoading] = useState(true);
-
- const supabase = getSupabaseClient();
 
  useEffect(() => {
   loadDeals();
@@ -32,20 +30,13 @@ export default function DealsPage() {
    if (!confirm("Delete this deal?")) return;
 
    try {
-    const response = await fetch(`/api/deals/${dealId}`, {
-     method: "DELETE",
-    });
-
-    if (!response.ok) {
-     const error = await response.json();
-     throw new Error(error.error || "Failed to delete deal");
-    }
+    await pb.collection('deals').update(dealId, { is_active: false });
 
     dataService.invalidateDealsCache();
     loadDeals(true);
-   } catch (error) {
+   } catch (error: any) {
     console.error("Failed to delete deal:", error);
-    alert(`Failed to delete deal: ${error instanceof Error ? error.message : "Unknown error"}`);
+    alert(`Failed to delete deal: ${error.message || "Unknown error"}`);
    }
   };
 

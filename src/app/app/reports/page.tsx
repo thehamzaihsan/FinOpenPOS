@@ -2,7 +2,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getSupabaseClient } from "@/lib/supabase-client";
+import pb from "@/lib/pb";
+import { dataService } from "@/lib/data-service";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Calendar, Download, Printer } from "lucide-react";
 
@@ -16,62 +17,68 @@ export default function ReportsPage() {
  const [khataStats, setKhataStats] = useState<any[]>([]);
  const [loading, setLoading] = useState(false);
 
- const supabase = getSupabaseClient();
+const loadReports = async () => {
+   setLoading(true);
+   try {
+    const isAuthed = pb.authStore.isValid;
+    if (!isAuthed) return;
 
- const loadReports = async () => {
-  setLoading(true);
-  try {
-   // Profit data
-   const { data: orders } = await supabase
-    .from("orders")
-    .select("*, order_items(*)")
-    .gte("created_at", startDate)
-    .lte("created_at", endDate);
+    // Filter format for PocketBase
+    const filter = `created >= "${startDate} 00:00:00" && created <= "${endDate} 23:59:59"`;
 
-   const profitByDay = new Map();
-   (orders || []).forEach((order: any) => {
-    const date = new Date(order.created_at).toLocaleDateString();
-    const dayData = profitByDay.get(date) || { date, revenue: 0, cost: 0 };
-    dayData.revenue += order.total_amount || 0;
-    (order.order_items || []).forEach((item: any) => {
-     dayData.cost += item.unit_price * item.quantity * 0.7; // Estimate cost
+    // Profit data
+    const orders = await pb.collection('orders').getFullList({
+      filter,
+      expand: 'order_items_via_order',
     });
-    profitByDay.set(date, dayData);
-   });
 
-   setProfitData(Array.from(profitByDay.values()).slice(0, 30));
-
-   // Best selling products
-   const productMap = new Map();
-   (orders || []).forEach((order: any) => {
-    (order.order_items || []).forEach((item: any) => {
-     const key = item.product_id;
-     const current = productMap.get(key) || { name: item.product_name, units: 0, revenue: 0 };
-     current.units += item.quantity;
-     current.revenue += item.unit_price * item.quantity;
-     productMap.set(key, current);
+    const profitByDay = new Map();
+    (orders || []).forEach((order: any) => {
+     const date = new Date(order.created).toLocaleDateString();
+     const dayData = profitByDay.get(date) || { date, revenue: 0, cost: 0 };
+     dayData.revenue += order.total_amount || 0;
+     
+     const items = order.expand?.order_items_via_order || [];
+     items.forEach((item: any) => {
+      dayData.cost += (item.unit_price || 0) * (item.quantity || 0) * 0.7; // Estimate cost
+     });
+     profitByDay.set(date, dayData);
     });
-   });
 
-   const sorted = Array.from(productMap.values())
-    .sort((a, b) => b.units - a.units)
-    .slice(0, 10);
+    setProfitData(Array.from(profitByDay.values()).slice(0, 30));
 
-   setBestProducts(sorted);
+    // Best selling products
+    const productMap = new Map();
+    (orders || []).forEach((order: any) => {
+     const items = order.expand?.order_items_via_order || [];
+     items.forEach((item: any) => {
+      const key = item.product_id;
+      const current = productMap.get(key) || { name: item.product_name || "Unknown", units: 0, revenue: 0 };
+      current.units += item.quantity || 0;
+      current.revenue += (item.unit_price || 0) * (item.quantity || 0);
+      productMap.set(key, current);
+     });
+    });
 
-   // Khata stats
-   const { data: khataAccounts } = await supabase
-    .from("khata_accounts")
-    .select("*, customers(*)")
-    .gt("balance", 0);
+    const sorted = Array.from(productMap.values())
+     .sort((a, b) => b.units - a.units)
+     .slice(0, 10);
 
-   setKhataStats(khataAccounts || []);
-   setLoading(false);
-  } catch (error) {
-   console.error("Failed to load reports:", error);
-   setLoading(false);
-  }
- };
+    setBestProducts(sorted);
+
+    // Khata stats
+    const khataAccounts = await pb.collection('khata_accounts').getFullList({
+      filter: 'current_balance > 0',
+      expand: 'customer_id',
+    });
+
+    setKhataStats(khataAccounts || []);
+    setLoading(false);
+   } catch (error) {
+    console.error("Failed to load reports:", error);
+    setLoading(false);
+   }
+  };
 
  useEffect(() => {
   loadReports();

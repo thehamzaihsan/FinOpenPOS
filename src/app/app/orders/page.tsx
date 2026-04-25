@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getSupabaseClient } from "@/lib/supabase-client";
 import { dataService } from "@/lib/data-service";
 import Link from "next/link";
 import { Eye, Search, RefreshCw } from "lucide-react";
@@ -10,13 +9,15 @@ import { Eye, Search, RefreshCw } from "lucide-react";
 interface Order {
  id: string;
  customer_id?: string;
- created_at: string;
+ created: string;
  total_amount: number;
  amount_paid: number;
  balance_due: number;
  status: string;
- customers?: {
-  name: string;
+ expand?: {
+  customer?: {
+   name: string;
+  };
  };
 }
 
@@ -29,8 +30,6 @@ export default function OrdersPage() {
  const [currentPage, setCurrentPage] = useState(1);
  const itemsPerPage = 10;
 
- const supabase = getSupabaseClient();
-
  useEffect(() => {
   loadOrders();
  }, []);
@@ -41,13 +40,8 @@ export default function OrdersPage() {
 
  const loadOrders = async (forceRefresh = false) => {
   try {
-   // For complex queries with relations, we bypass cache for accuracy
-   const { data, error } = await supabase
-    .from("orders")
-    .select("*, customers(*)")
-    .order("created_at", { ascending: false });
-
-   if (error) throw error;
+   setLoading(true);
+   const data = await dataService.getOrders(forceRefresh);
    setOrders(data || []);
    setLoading(false);
   } catch (error) {
@@ -67,7 +61,7 @@ export default function OrdersPage() {
    filtered = filtered.filter(
     (o) =>
      o.id.includes(searchQuery) ||
-     o.customers?.name.toLowerCase().includes(searchQuery.toLowerCase())
+     o.expand?.customer?.name.toLowerCase().includes(searchQuery.toLowerCase())
    );
   }
 
@@ -102,17 +96,26 @@ export default function OrdersPage() {
  if (loading) {
   return (
    <div className="p-6 flex items-center justify-center min-h-screen">
-    <div className="text-gray-600">Loading orders...</div>
+    <div className="text-gray-600 font-aeonik">Loading orders...</div>
    </div>
   );
  }
 
  return (
-  <div className="p-6 space-y-6">
-   <h1 className="text-3xl font-bold text-gray-900">Orders</h1>
+  <div className="p-6 space-y-6 font-aeonik">
+   <div className="flex items-center justify-between">
+    <h1 className="text-3xl font-bold text-gray-900">Orders</h1>
+    <button
+     onClick={() => loadOrders(true)}
+     className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+    >
+     <RefreshCw className="w-4 h-4" />
+     Refresh
+    </button>
+   </div>
 
    {/* Filters */}
-   <div className="bg-white shadow p-4 space-y-4 md:space-y-0 md:flex md:gap-4 md:items-end">
+   <div className="bg-white shadow-sm border border-gray-100 p-4 space-y-4 md:space-y-0 md:flex md:gap-4 md:items-end">
     <div className="flex-1">
      <label className="block text-sm font-medium text-gray-700 mb-1">
       Search
@@ -124,7 +127,7 @@ export default function OrdersPage() {
        placeholder="Search by order ID or customer..."
        value={searchQuery}
        onChange={(e) => setSearchQuery(e.target.value)}
-       className="w-full pl-10 pr-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500"
+       className="w-full pl-10 pr-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
       />
      </div>
     </div>
@@ -136,7 +139,7 @@ export default function OrdersPage() {
      <select
       value={statusFilter}
       onChange={(e) => setStatusFilter(e.target.value)}
-      className="px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500"
+      className="px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white min-w-[150px]"
      >
       <option value="all">All Status</option>
       <option value="paid">Paid</option>
@@ -148,33 +151,33 @@ export default function OrdersPage() {
    </div>
 
    {/* Orders Table */}
-   <div className="bg-white shadow overflow-hidden">
+   <div className="bg-white shadow-sm border border-gray-100 overflow-hidden">
     <div className="overflow-x-auto">
      <table className="w-full">
       <thead className="bg-gray-50 border-b border-gray-200">
        <tr>
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
          Order ID
         </th>
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
          Customer
         </th>
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
          Date & Time
         </th>
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
          Total
         </th>
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
          Paid
         </th>
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
          Balance
         </th>
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
          Status
         </th>
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
          Actions
         </th>
        </tr>
@@ -192,16 +195,16 @@ export default function OrdersPage() {
           <td className="px-6 py-4 font-medium text-gray-900">
            {order.id.slice(0, 8)}
           </td>
-          <td className="px-6 py-4 text-gray-700">
-           {order.customers?.name || "Walk-in"}
+          <td className="px-6 py-4 text-gray-600">
+           {order.expand?.customer?.name || "Walk-in"}
           </td>
-          <td className="px-6 py-4 text-gray-700">
-           {new Date(order.created_at).toLocaleString()}
+          <td className="px-6 py-4 text-gray-600">
+           {new Date(order.created).toLocaleString()}
           </td>
           <td className="px-6 py-4 text-gray-900 font-medium">
            PKR {order.total_amount.toLocaleString()}
           </td>
-          <td className="px-6 py-4 text-gray-700">
+          <td className="px-6 py-4 text-gray-600">
            PKR {order.amount_paid.toLocaleString()}
           </td>
           <td
@@ -241,7 +244,7 @@ export default function OrdersPage() {
     {/* Pagination */}
     {totalPages > 1 && (
      <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200">
-      <div className="text-sm text-gray-600">
+      <div className="text-sm text-gray-500">
        Showing {startIdx + 1} to {Math.min(startIdx + itemsPerPage, filteredOrders.length)} of{" "}
        {filteredOrders.length} orders
       </div>
@@ -249,7 +252,7 @@ export default function OrdersPage() {
        <button
         onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
         disabled={currentPage === 1}
-        className="px-4 py-2 border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="px-4 py-2 border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
        >
         Previous
        </button>
@@ -259,7 +262,7 @@ export default function OrdersPage() {
          onClick={() => setCurrentPage(page)}
          className={`px-3 py-2 font-medium transition-colors ${
           currentPage === page
-           ? "bg-blue-600 text-white"
+           ? "bg-blue-600 text-white shadow-sm"
            : "border border-gray-300 hover:bg-gray-100"
          }`}
         >
@@ -269,7 +272,7 @@ export default function OrdersPage() {
        <button
         onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
         disabled={currentPage === totalPages}
-        className="px-4 py-2 border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="px-4 py-2 border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
        >
         Next
        </button>

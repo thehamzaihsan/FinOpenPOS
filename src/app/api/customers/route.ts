@@ -1,136 +1,34 @@
-/**
- * Customers API - List & Create
- * GET: List retail customers
- * POST: Create retail customer
- */
+import { NextResponse, NextRequest } from "next/server";
+import PocketBase from "pocketbase";
 
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+async function getAdminClient(request: NextRequest) {
+  const email = request.headers.get("x-pb-email") || "";
+  const password = request.headers.get("x-pb-password") || "";
+  const client = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL || "http://127.0.0.1:8090");
+  await client.admins.authWithPassword(email, password);
+  return client;
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
-    const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get('pageSize') || '10')));
-    const search = searchParams.get('search') || '';
-
-    let query = supabase
-      .from('customers')
-      .select('*', { count: 'exact' })
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .eq('customer_type', 'retail');
-
-    if (search) {
-      query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,address.ilike.%${search}%`);
-    }
-
-    query = query.order('created_at', { ascending: false });
-
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
-
-    const { data, count, error } = await query.range(from, to);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: data || [],
-      pagination: {
-        total: count || 0,
-        page,
-        pageSize,
-        totalPages: Math.ceil((count || 0) / pageSize),
-      },
+    const pb = await getAdminClient(request);
+    const customers = await pb.collection("customers").getFullList({
+      filter: "is_active = true",
+      sort: "-created",
     });
+    return NextResponse.json({ success: true, data: customers });
   } catch (error) {
-    console.error('Customer list error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch customers' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Failed to fetch customers" }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+    const pb = await getAdminClient(request);
     const body = await request.json();
-    const { name, phone, address } = body;
-
-    if (!name) {
-      return NextResponse.json(
-        { error: 'Customer name is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!phone) {
-      return NextResponse.json(
-        { error: 'Customer phone number is required' },
-        { status: 400 }
-      );
-    }
-
-    const { data, error } = await supabase
-      .from('customers')
-      .insert([
-        {
-          user_id: user.id,
-          name: name.trim(),
-          phone: phone.trim(),
-          address: address || null,
-          customer_type: 'retail',
-          is_walk_in: false,
-          is_active: true,
-        },
-      ])
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    // --- AUTOMATIC KHATA ACCOUNT CREATION ---
-    // Every retail customer automatically gets a khata account to track balance
-    try {
-      await supabase
-        .from('khata_accounts')
-        .insert({
-          user_id: user.id,
-          customer_id: data.id,
-          opening_balance: 0,
-          current_balance: 0,
-          is_active: true
-        });
-    } catch (khataError) {
-      console.error('Failed to auto-create khata account for customer:', khataError);
-    }
-    // --- END AUTOMATIC KHATA ---
-
-    return NextResponse.json({ success: true, data }, { status: 201 });
+    const customer = await pb.collection("customers").create(body);
+    return NextResponse.json({ success: true, data: customer });
   } catch (error) {
-    console.error('Customer creation error:', error);
-    return NextResponse.json(
-      { error: 'Failed to create customer' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Failed to create customer" }, { status: 500 });
   }
 }

@@ -53,22 +53,28 @@ export default function OrderDetailPage() {
   const loadOrderData = async () => {
    if (!orderId) return;
    try {
-    const response = await fetch(`/api/orders/${orderId}`);
-    
-    if (!response.ok) {
-     const errorText = await response.text();
-     throw new Error(`Failed to load order: ${response.status} ${errorText}`);
-    }
+const response = await fetch(`/api/orders/${orderId}`, {
+      headers: {
+        "x-pb-email": localStorage.getItem("pb_admin_email") || "",
+        "x-pb-password": localStorage.getItem("pb_admin_password") || "",
+      }
+     });
+     
+     if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to load order: ${response.status} ${errorText}`);
+     }
 
-    const { data: order } = await response.json();
-    setOrder(order);
-    setItems(order.items || []);
-    setLoading(false);
-   } catch (error) {
-    console.error("Failed to load order:", error);
-    setLoading(false);
-   }
-  };
+     const json = await response.json();
+     const order = json.data || json;
+     setOrder(order);
+     setItems(order.items || order.order_items || []);
+     setLoading(false);
+    } catch (error) {
+     console.error("Failed to load order:", error);
+     setLoading(false);
+    }
+   };
 
   const calculateRefundAmount = () => {
    return items.reduce((sum, item) => {
@@ -98,7 +104,10 @@ export default function OrderDetailPage() {
 
     const response = await fetch(`/api/orders/${orderId}/refund`, {
      method: "POST",
-     headers: { "Content-Type": "application/json" },
+     headers: { "Content-Type": "application/json",
+        "x-pb-email": localStorage.getItem("pb_admin_email") || "",
+        "x-pb-password": localStorage.getItem("pb_admin_password") || "",
+     },
      body: JSON.stringify({
       refund_amount: refundAmountToProcess,
       returned_items: returnedItemsList,
@@ -234,24 +243,24 @@ export default function OrderDetailPage() {
          </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {items.map((item) => (
-           <tr key={item.id}>
-            <td className="py-3 px-4 text-gray-900 font-medium">
-             Product {item.product_id.slice(0, 8)}
-            </td>
-            <td className="py-3 px-4 text-gray-700">{item.quantity}</td>
-            <td className="py-3 px-4 text-gray-700">
-             PKR {item.unit_price}
-            </td>
-            <td className="py-3 px-4 text-gray-700">
-             {item.discount_pct > 0 ? `${item.discount_pct}%` : '-'}
-            </td>
-            <td className="py-3 px-4 text-right text-gray-900 font-medium">
-             PKR {item.line_total.toLocaleString()}
-            </td>
-           </tr>
-          ))}
-        </tbody>
+{items.map((item) => (
+            <tr key={item.id}>
+             <td className="py-3 px-4 text-gray-900 font-medium">
+              {item.product_name || `Product ${item.product_id?.slice(0, 8) || 'N/A'}`}
+             </td>
+             <td className="py-3 px-4 text-gray-700">{item.quantity}</td>
+             <td className="py-3 px-4 text-gray-700">
+              PKR {item.unit_price.toLocaleString()}
+             </td>
+             <td className="py-3 px-4 text-gray-700">
+              {item.discount_pct > 0 ? `${item.discount_pct}%` : '-'}
+             </td>
+             <td className="py-3 px-4 text-right text-gray-900 font-medium">
+              PKR {item.line_total.toLocaleString()}
+             </td>
+            </tr>
+           ))}
+         </tbody>
        </table>
       </div>
      </div>
@@ -346,12 +355,12 @@ export default function OrderDetailPage() {
       <div className="space-y-3">
        {items.map(item => (
         <div key={item.id} className="flex items-center justify-between gap-4 p-3 border border-gray-200 rounded">
-         <div>
-          <p className="font-medium text-gray-900">Product {item.product_id.slice(0, 8)}</p>
-          <p className="text-sm text-gray-500">
-           Price: PKR {(item.line_total / item.quantity).toLocaleString()} | Max Qty: {item.quantity}
-          </p>
-         </div>
+<div>
+            <p className="font-medium text-gray-900">{item.product_name || `Product ${item.product_id?.slice(0, 8) || 'N/A'}`}</p>
+            <p className="text-sm text-gray-500">
+             Price: PKR {(item.line_total / item.quantity).toLocaleString()} | In Order: {item.quantity}
+            </p>
+           </div>
          <div className="flex items-center gap-2">
           <label className="text-sm text-gray-600">Return Qty:</label>
           <input

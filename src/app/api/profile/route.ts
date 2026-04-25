@@ -1,64 +1,30 @@
-import { createClient } from "@/lib/supabase/server"
-import { NextResponse } from "next/server"
+import { NextResponse, NextRequest } from "next/server";
+import PocketBase from "pocketbase";
 
-export async function GET() {
-  const supabase = await createClient()
+export const dynamic = "force-dynamic";
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
+export async function GET(request: NextRequest) {
   try {
-    const { data, error } = await supabase
-      .from("users")
-      .select("name, address, phoneNumber")
-      .eq("id", user.id)
-      .single()
+    const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL || "http://127.0.0.1:8090");
+    
+    pb.authStore.loadFromCookie(request.headers.get('cookie') || '');
 
-    if (error) {
-      if (error.code === "PGRST116") {
-        // No profile found
-        return NextResponse.json({ error: "No profile found" }, { status: 404 })
-      }
-      throw error
+    if (pb.authStore.isValid) {
+        try {
+            await pb.collection('admins').authRefresh();
+        } catch (_) {
+            pb.authStore.clear();
+        }
     }
 
-    return NextResponse.json(data)
+    if (!pb.authStore.isValid) {
+        return NextResponse.json({ success: false, error: "Not authenticated" }, { status: 401 });
+    }
+
+    const user = pb.authStore.model;
+    return NextResponse.json({ success: true, data: user });
+
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 })
+    return NextResponse.json({ success: false, error: "Failed to fetch profile" }, { status: 500 });
   }
 }
-
-export async function POST(request: Request) {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  try {
-    const { name, address, phoneNumber } = await request.json()
-
-    const { error } = await supabase.from("users").upsert({
-      id: user.id,
-      name,
-      address,
-      phoneNumber,
-    })
-
-    if (error) throw error
-
-    return NextResponse.json({ message: "Profile updated successfully" })
-  } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 })
-  }
-}
-

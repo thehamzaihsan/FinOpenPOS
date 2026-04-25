@@ -4,7 +4,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { getSupabaseClient } from "@/lib/supabase-client";
+import pb from "@/lib/pb";
+import { dataService } from "@/lib/data-service";
 import { ArrowLeft } from "lucide-react";
 
 export default function EditProductPage() {
@@ -26,21 +27,15 @@ export default function EditProductPage() {
   maxDiscount: 0,
  });
 
- const supabase = getSupabaseClient();
-
  useEffect(() => {
   loadProduct();
  }, [productId]);
 
  const loadProduct = async () => {
   try {
-   const { data, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("id", productId)
-    .single();
+   const data = await dataService.getProduct(productId);
 
-   if (error) throw error;
+   if (!data) throw new Error("Product not found");
 
    setFormData({
     name: data.name,
@@ -94,9 +89,7 @@ export default function EditProductPage() {
      return;
     }
 
-    await supabase
-     .from("products")
-     .update({
+    await pb.collection('products').update(productId, {
       name: formData.name,
       description: formData.description,
       purchase_price: formData.purchasePrice,
@@ -106,14 +99,14 @@ export default function EditProductPage() {
       quantity: formData.quantity,
       min_discount: formData.minDiscount,
       max_discount: formData.maxDiscount,
-     })
-     .eq("id", productId);
+     });
 
     alert("Product updated successfully!");
+    dataService.invalidateProductsCache();
     router.push("/app/products");
-   } catch (error) {
+   } catch (error: any) {
     console.error("Failed to update product:", error);
-    alert("Failed to update product");
+    alert(`Failed to update product: ${error.message || "Unknown error"}`);
    } finally {
     setSaving(false);
    }

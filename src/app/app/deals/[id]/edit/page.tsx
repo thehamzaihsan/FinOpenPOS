@@ -24,7 +24,12 @@ export default function EditDealPage() {
 
  const loadDeal = async () => {
   try {
-   const response = await fetch(`/api/deals/${dealId}`);
+   const response = await fetch(`/api/deals/${dealId}`, {
+    headers: {
+      "x-pb-email": localStorage.getItem("pb_admin_email") || "",
+      "x-pb-password": localStorage.getItem("pb_admin_password") || "",
+    }
+   });
 
    if (!response.ok) {
     throw new Error("Failed to load deal");
@@ -59,7 +64,10 @@ export default function EditDealPage() {
   try {
    const response = await fetch(`/api/deals/${dealId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json",
+      "x-pb-email": localStorage.getItem("pb_admin_email") || "",
+      "x-pb-password": localStorage.getItem("pb_admin_password") || "",
+    },
     body: JSON.stringify({
      name: formData.name,
      description: formData.description,

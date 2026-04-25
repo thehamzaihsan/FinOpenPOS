@@ -1,5 +1,5 @@
 -- ============================================================
--- POS-SY Fix Missing user_id Columns
+-- POS-SYS Fix Missing user_id Columns
 -- This migration ensures all multi-tenant tables have a user_id column.
 -- ============================================================
 

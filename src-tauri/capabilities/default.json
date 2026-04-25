@@ -1,0 +1,27 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "enables the default permissions",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "shell:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "args": [
+            "serve",
+            "--http",
+            "127.0.0.1:8090",
+            "--dir"
+          ],
+          "sidecar": true,
+          "name": "bin/pocketbase"
+        }
+      ]
+    }
+  ]
+}

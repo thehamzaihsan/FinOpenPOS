@@ -1,47 +1,21 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-
-export const getSupabaseClient = () => {
-  return createClient(supabaseUrl, supabaseAnonKey);
-};
+import pb from './pb';
 
 export async function getSession() {
-  const supabase = getSupabaseClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  return session;
+  return pb.authStore.model;
 }
 
 export async function getUser() {
-  const supabase = getSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
+  return pb.authStore.model;
 }
 
 export async function isAuthenticated() {
-  const user = await getUser();
-  return !!user;
+  return pb.authStore.isValid;
 }
 
-export async function isAdmin(email?: string) {
-  if (!email) {
-    const user = await getUser();
-    email = user?.email;
-  }
-
-  if (!email) return false;
-
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from('admin_users')
-    .select('id')
-    .eq('email', email)
-    .single();
-
-  return !!data && !error;
+export async function isAdmin() {
+  const user = pb.authStore.model;
+  if (!user) return false;
+  
+  // In PocketBase, we can check for is_admin or role fields
+  return user.role === 'admin' || user.is_admin === true;
 }

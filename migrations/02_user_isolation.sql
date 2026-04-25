@@ -1,5 +1,5 @@
 -- ============================================================
--- POS-SY Isolation & Multi-User Support Migration
+-- POS-SYS Isolation & Multi-User Support Migration
 -- This migration updates the schema to support per-user data isolation.
 -- ============================================================
 

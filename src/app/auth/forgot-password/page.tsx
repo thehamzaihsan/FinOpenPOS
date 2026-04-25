@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import pb from "@/lib/pb";
 import { AlertCircle, CheckCircle, Mail } from "lucide-react";
 
 export default function ForgotPasswordPage() {
@@ -11,8 +11,6 @@ export default function ForgotPasswordPage() {
  const [error, setError] = useState<string | null>(null);
  const [success, setSuccess] = useState(false);
 
- const supabase = createClient();
-
  const handleReset = async (e: React.FormEvent) => {
   e.preventDefault();
   setError(null);
@@ -20,20 +18,10 @@ export default function ForgotPasswordPage() {
   setLoading(true);
 
   try {
-   const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-    email,
-    {
-     redirectTo: `${window.location.origin}/auth/reset-password`,
-    }
-   );
-
-   if (resetError) {
-    setError(resetError.message);
-   } else {
-    setSuccess(true);
-   }
-  } catch (err) {
-   setError("An error occurred. Please try again.");
+   await pb.collection('users').requestPasswordReset(email);
+   setSuccess(true);
+  } catch (err: any) {
+   setError(err.message || "An error occurred. Please try again.");
   } finally {
    setLoading(false);
   }
@@ -66,7 +54,7 @@ export default function ForgotPasswordPage() {
    <div className="bg-white shadow-lg p-8 w-full max-w-md">
     <div className="flex items-center justify-center mb-6">
      <Mail className="w-8 h-8 text-blue-600 mr-2" />
-     <h1 className="text-2xl font-bold text-gray-900">POS-SY</h1>
+     <h1 className="text-2xl font-bold text-gray-900">POS-SYS</h1>
     </div>
 
     <h2 className="text-xl font-semibold text-gray-900 text-center mb-2">

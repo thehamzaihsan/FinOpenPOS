@@ -2,97 +2,90 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-import { getSupabaseClient } from "@/lib/supabase-client";
+import { useEffect, useState, useRef } from "react";
+import pb from "@/lib/pb";
 import {
- LayoutDashboard,
- ShoppingCart,
- Package,
- Users,
- Zap,
- BarChart3,
- LogOut,
- Menu,
- X,
- Settings as SettingsIcon,
+  LayoutDashboard,
+  ShoppingCart,
+  Package,
+  Users,
+  Zap,
+  BarChart3,
+  LogOut,
+  Menu,
+  X,
+  Settings as SettingsIcon,
 } from "lucide-react";
 
 const navItems = [
- { label: "Dashboard", href: "/app/dashboard", icon: LayoutDashboard },
- { label: "POS", href: "/app/pos", icon: ShoppingCart },
- { label: "Orders", href: "/app/orders", icon: Package },
- { label: "Products", href: "/app/products", icon: Package },
- { label: "Deals", href: "/app/deals", icon: Zap },
- { label: "Customers", href: "/app/customers", icon: Users },
- { label: "Reports", href: "/app/reports", icon: BarChart3 },
- { label: "Customizer", href: "/app/customizer", icon: SettingsIcon },
+  { label: "Dashboard", href: "/app/dashboard", icon: LayoutDashboard },
+  { label: "POS", href: "/app/pos", icon: ShoppingCart },
+  { label: "Orders", href: "/app/orders", icon: Package },
+  { label: "Products", href: "/app/products", icon: Package },
+  { label: "Deals", href: "/app/deals", icon: Zap },
+  { label: "Customers", href: "/app/customers", icon: Users },
+  { label: "Reports", href: "/app/reports", icon: BarChart3 },
+  { label: "Settings", href: "/app/settings", icon: SettingsIcon },
+  { label: "Customizer", href: "/app/customizer", icon: SettingsIcon },
 ];
 
 export function AppSidebar({ children }: { children: React.ReactNode }) {
- const router = useRouter();
- const pathname = usePathname();
- const [userName, setUserName] = useState<string | null>(null);
- const [mobileOpen, setMobileOpen] = useState(false);
- const [loading, setLoading] = useState(true);
-
- const supabase = getSupabaseClient();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [userName, setUserName] = useState<string | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const checked = useRef(false);
 
   useEffect(() => {
-    const checkAuth = async () => {
-    const {
-     data: { user },
-     error,
-    } = await supabase.auth.getUser();
+    if (checked.current) return;
+    checked.current = true;
 
-    if (error || !user) {
-     router.replace("/auth/login");
-     return;
-    }
+    const checkAuth = () => {
+      if (!pb.authStore.isValid) {
+        router.replace("/auth/login");
+        return;
+      }
 
-    setUserName(user.email?.split("@")[0] || "User");
-    setLoading(false);
+      setUserName(pb.authStore.model?.name || pb.authStore.model?.email?.split("@")[0] || "User");
+      setLoading(false);
     };
 
-  checkAuth();
- }, [router, supabase]);
+    checkAuth();
+  }, [router]);
 
- const handleLogout = async () => {
-  await supabase.auth.signOut();
-  router.push("/auth/login");
- };
+  const handleLogout = () => {
+    pb.authStore.clear();
+    router.push("/auth/login");
+  };
 
- if (loading) {
-  return (
-   <div className="min-h-screen flex items-center justify-center">
-    <div className="text-gray-600">Loading...</div>
-   </div>
-  );
- }
-
- return (
-  <div className="flex h-screen bg-gray-100">
-   {/* Sidebar */}
-   <div
-    className={`${
-     mobileOpen ? "translate-x-0" : "-translate-x-full"
-    } lg:translate-x-0 fixed lg:static inset-y-0 left-0 w-64 bg-white border-r border-gray-200 transition-transform duration-300 z-40`}
-   >
-    <div className="flex flex-col h-full">
-     {/* Logo */}
-     <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-      <div className="flex items-center gap-2">
-       <ShoppingCart className="w-6 h-6 text-blue-600" />
-       <span className="text-lg font-bold text-gray-900">POS-SY</span>
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+       <div className="text-gray-600 font-sans">Loading...</div>
       </div>
-      <button
-       onClick={() => setMobileOpen(false)}
-       className="lg:hidden text-gray-600"
-      >
-       <X className="w-5 h-5" />
-      </button>
-     </div>
+    );
+  }
 
-     {/* Navigation */}
+  return (
+    <div className="flex h-screen bg-gray-100 font-sans">
+      {/* Sidebar */}
+      <div className={`${mobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:static inset-y-0 left-0 w-64 bg-white border-r border-gray-200 transition-transform duration-300 z-40`}>
+       <div className="flex flex-col h-full">
+        {/* Logo */}
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+         <div className="flex items-center gap-2">
+          <div className="p-1 bg-blue-600">
+           <ShoppingCart className="w-5 h-5 text-white" />
+          </div>
+          <span className="text-lg font-bold text-gray-900">FinOpenPOS</span>
+         </div>
+         <button onClick={() => setMobileOpen(false)} className="lg:hidden text-gray-600">
+          <X className="w-5 h-5" />
+         </button>
+        </div>
+
+        {/* Navigation */}
      <nav className="flex-1 p-4 overflow-y-auto">
       <ul className="space-y-1">
        {navItems.map((item) => {
@@ -147,7 +140,7 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
    <div className="flex-1 flex flex-col overflow-hidden">
     {/* Top Bar */}
     <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between lg:hidden">
-     <h1 className="text-lg font-semibold text-gray-900">POS-SY</h1>
+     <h1 className="text-lg font-semibold text-gray-900">POS-SYS</h1>
      <button
       onClick={() => setMobileOpen(true)}
       className="text-gray-600"

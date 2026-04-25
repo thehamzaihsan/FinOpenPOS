@@ -6,14 +6,17 @@ import { dataService } from "@/lib/data-service";
 import { Plus, Minus, Trash2, Printer, AlertCircle, X } from "lucide-react";
 
 interface CartItem {
- id: string;
- productId: string;
- name: string;
- variant?: string;
- quantity: number;
- unitPrice: number;
- discount: number;
- maxDiscount: number;
+  id: string;
+  productId: string;
+  name: string;
+  variant?: string;
+  quantity: number;
+  unitPrice: number;
+  discount: number;
+  maxDiscount: number;
+  maxQty: number;
+  _isDeal?: boolean;
+  _dealItems?: Array<{ product_id: string; quantity: number; product?: any }>;
 }
 
 interface Product {
@@ -54,39 +57,48 @@ export default function POSPage() {
   const [inStockOnly, setInStockOnly] = useState(false);
 
   const [shopSettings, setShopSettings] = useState<any>(null);
+  const [deals, setDeals] = useState<any[]>([]);
 
   useEffect(() => {
    loadData();
    fetchSettings();
   }, []);
 
-  const fetchSettings = async () => {
-   try {
-    const res = await fetch("/api/settings/shop");
-    const json = await res.json();
-    if (json.success && json.data) {
-     setShopSettings(json.data);
+const fetchSettings = async () => {
+    try {
+     const res = await fetch("/api/settings/shop", {
+      headers: {
+        "x-pb-email": localStorage.getItem("pb_admin_email") || "",
+        "x-pb-password": localStorage.getItem("pb_admin_password") || "",
+      }
+     });
+     if (!res.ok) return;
+     const json = await res.json();
+     if (json.success && json.data) {
+      setShopSettings(json.data);
+     }
+    } catch (err) {
+     console.error("Failed to load settings:", err);
     }
-   } catch (err) {
-    console.error("Failed to load settings:", err);
+   };
+
+const loadData = async (forceRefresh = false) => {
+   try {
+    const [products, customers, dealsData] = await Promise.all([
+     dataService.getProducts(forceRefresh),
+     dataService.getCustomers(forceRefresh),
+     dataService.getDeals(forceRefresh),
+    ]);
+
+    setProducts(products || []);
+    setCustomers(customers || []);
+    setDeals(dealsData || []);
+    setLoading(false);
+   } catch (error) {
+    console.error("Failed to load data:", error);
+    setLoading(false);
    }
   };
-
- const loadData = async (forceRefresh = false) => {
-  try {
-   const [products, customers] = await Promise.all([
-    dataService.getProducts(forceRefresh),
-    dataService.getCustomers(forceRefresh),
-   ]);
-
-   setProducts(products || []);
-   setCustomers(customers || []);
-   setLoading(false);
-  } catch (error) {
-   console.error("Failed to load data:", error);
-   setLoading(false);
-  }
- };
 
   const addToCart = (product: Product) => {
    if (product.quantity <= 0) {
@@ -94,34 +106,36 @@ export default function POSPage() {
     return;
    }
 
-   const existingItem = cart.find((item) => item.productId === product.id);
+const existingItem = cart.find((item) => item.productId === product.id);
 
-   if (existingItem) {
-    if (existingItem.quantity >= product.quantity) {
-     setOrderError(`Cannot add more ${product.name}: Insufficient stock (Available: ${product.quantity})`);
-     return;
-    }
-    setCart(
-     cart.map((item) =>
-      item.productId === product.id
-       ? { ...item, quantity: item.quantity + 1 }
-       : item
-     )
-    );
-   } else {
+    if (existingItem) {
+     const newQty = existingItem.quantity + 1;
+     if (newQty > product.quantity) {
+      setOrderError(`Cannot add more ${product.name}: Only ${product.quantity} in stock`);
+      return;
+     }
+     setCart(
+      cart.map((item) =>
+       item.productId === product.id
+        ? { ...item, quantity: newQty }
+        : item
+      )
+     );
+    } else {
 
-   const newItem: CartItem = {
-    id: `${product.id}-${Date.now()}`,
-    productId: product.id,
-    name: product.name,
-    quantity: 1,
-    unitPrice: product.sale_price,
-    discount: 0,
-    maxDiscount: product.max_discount,
-   };
-   setCart([...cart, newItem]);
-  }
- };
+    const newItem: CartItem = {
+     id: `${product.id}-${Date.now()}`,
+     productId: product.id,
+     name: product.name,
+     quantity: 1,
+     unitPrice: product.sale_price,
+     discount: 0,
+     maxDiscount: product.max_discount,
+     maxQty: product.quantity,
+    };
+    setCart([...cart, newItem]);
+   }
+  };
 
  const updateCartItem = (id: string, updates: Partial<CartItem>) => {
   setCart(
@@ -200,7 +214,10 @@ export default function POSPage() {
      // Create order via API (which now handles items as well)
      const orderResponse = await fetch("/api/orders", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json",
+        "x-pb-email": localStorage.getItem("pb_admin_email") || "",
+        "x-pb-password": localStorage.getItem("pb_admin_password") || "",
+      },
       body: JSON.stringify(orderData),
      });
 
@@ -371,7 +388,10 @@ export default function POSPage() {
    try {
     const response = await fetch("/api/customers", {
      method: "POST",
-     headers: { "Content-Type": "application/json" },
+     headers: { "Content-Type": "application/json",
+        "x-pb-email": localStorage.getItem("pb_admin_email") || "",
+        "x-pb-password": localStorage.getItem("pb_admin_password") || "",
+     },
      body: JSON.stringify({
       name: newCustomerName,
       phone: newCustomerPhone,
@@ -406,23 +426,56 @@ export default function POSPage() {
   );
  }
 
- const filteredProducts = products.filter((p) => {
-  // Search query
-  const matchesSearch =
-   p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-   p.item_code.toLowerCase().includes(searchQuery.toLowerCase());
+const filteredProducts = products.filter((p) => {
+   // Search query
+   const matchesSearch =
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.item_code.toLowerCase().includes(searchQuery.toLowerCase());
 
-  // Price range
-  const matchesPrice =
-   p.sale_price >= minPrice && p.sale_price <= maxPrice;
+   // Price range
+   const matchesPrice =
+    p.sale_price >= minPrice && p.sale_price <= maxPrice;
 
-  // Stock availability
-  const matchesStock = !inStockOnly || p.quantity > 0;
+   // Stock availability
+   const matchesStock = !inStockOnly || p.quantity > 0;
 
-  return matchesSearch && matchesPrice && matchesStock;
- });
+   return matchesSearch && matchesPrice && matchesStock;
+  });
 
- return (
+  const isDealAvailable = (deal: any) => {
+    for (const item of deal.items || []) {
+      const p = products.find(x => x.id === item.product_id);
+      if (!p || p.quantity < item.quantity) return false;
+    }
+    return true;
+  };
+
+  const addDealToCart = (deal: any) => {
+    if (!isDealAvailable(deal)) {
+      setOrderError(`Cannot add ${deal.name}: One or more products are out of stock`);
+      return;
+    }
+    const existing = cart.find(item => item.productId === deal.id && item._isDeal);
+    if (existing) {
+      setOrderError(`${deal.name} already in cart`);
+      return;
+    }
+    const newItem: CartItem = {
+      id: `${deal.id}-${Date.now()}`,
+      productId: deal.id,
+      name: deal.name,
+      quantity: 1,
+      unitPrice: deal.deal_price || 0,
+      discount: 0,
+      maxDiscount: 0,
+      maxQty: 1,
+      _isDeal: true,
+      _dealItems: deal.items || [],
+    };
+    setCart([...cart, newItem]);
+  };
+
+  return (
   <div className="p-6 space-y-6">
    <h1 className="text-3xl font-bold text-gray-900">Point of Sale</h1>
 
@@ -564,21 +617,42 @@ export default function POSPage() {
 
      {/* Products Grid */}
      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-      {filteredProducts.map((product) => (
-       <div key={product.id} className="bg-white shadow p-4 hover:shadow-lg transition-shadow">
-        <h3 className="font-semibold text-gray-900 truncate">{product.name}</h3>
-        <p className="text-xs text-gray-500 mb-2">{product.item_code}</p>
-        <p className="text-lg font-bold text-blue-600 mb-3">
-         PKR {product.sale_price}
-        </p>
-        <button
-         onClick={() => addToCart(product)}
-         className="w-full bg-blue-600 text-white py-2 hover:bg-blue-700 transition-colors text-sm font-medium"
+      {filteredProducts.map((product) => {
+       const isOutOfStock = product.quantity <= 0;
+       return (
+        <div 
+         key={product.id} 
+         className={`bg-white shadow p-4 transition-all relative overflow-hidden ${
+          isOutOfStock ? "opacity-75 grayscale-[0.5] border-red-200 border-2" : "hover:shadow-lg border border-transparent"
+         }`}
         >
-         Add to Cart
-        </button>
-       </div>
-      ))}
+         {isOutOfStock && (
+          <div className="absolute top-2 right-2 bg-red-100 text-red-700 text-[10px] font-bold px-2 py-1 rounded">
+           OUT OF STOCK
+          </div>
+         )}
+         <h3 className="font-semibold text-gray-900 truncate pr-16">{product.name}</h3>
+         <p className="text-xs text-gray-500 mb-1">{product.item_code}</p>
+         <p className={`text-xs font-bold mb-2 ${isOutOfStock ? "text-red-500" : "text-green-600"}`}>
+          Stock: {product.quantity}
+         </p>
+         <p className="text-lg font-bold text-blue-600 mb-3">
+          PKR {product.sale_price}
+         </p>
+         <button
+          onClick={() => addToCart(product)}
+          disabled={isOutOfStock}
+          className={`w-full py-2 text-sm font-medium transition-colors ${
+           isOutOfStock 
+            ? "bg-gray-200 text-gray-500 cursor-not-allowed" 
+            : "bg-blue-600 text-white hover:bg-blue-700"
+          }`}
+         >
+          {isOutOfStock ? "Unavailable" : "Add to Cart"}
+         </button>
+        </div>
+       );
+      })}
      </div>
     </div>
 
@@ -760,40 +834,48 @@ export default function POSPage() {
             </button>
            </div>
 
-           {/* Quantity Controls */}
-           <div className="flex items-center gap-1.5 bg-gray-50 p-2">
-            <button
-             onClick={() =>
-              updateCartItem(item.id, {
-               quantity: Math.max(1, item.quantity - 1),
-              })
-             }
-             className="p-1 hover:bg-gray-200 transition-colors"
-            >
-             <Minus className="w-3.5 h-3.5 text-gray-600" />
-            </button>
-            <input
-             type="number"
-             value={item.quantity}
-             onChange={(e) =>
-              updateCartItem(item.id, {
-               quantity: parseInt(e.target.value) || 1,
-              })
-             }
-             className="flex-1 text-center border-0 bg-white font-semibold text-sm py-1 focus:ring-2 focus:ring-blue-400"
-             min="1"
-            />
-            <button
-             onClick={() =>
-              updateCartItem(item.id, {
-               quantity: item.quantity + 1,
-              })
-             }
-             className="p-1 hover:bg-gray-200 transition-colors"
-            >
-             <Plus className="w-3.5 h-3.5 text-gray-600" />
-            </button>
-           </div>
+{/* Quantity Controls */}
+            <div className="flex items-center gap-1.5 bg-gray-50 p-2">
+             <button
+              onClick={() =>
+               updateCartItem(item.id, {
+                quantity: Math.max(1, item.quantity - 1),
+               })
+              }
+              disabled={item.quantity <= 1}
+              className="p-1 hover:bg-gray-200 transition-colors disabled:opacity-40"
+             >
+              <Minus className="w-3.5 h-3.5 text-gray-600" />
+             </button>
+             <input
+              type="number"
+              value={item.quantity}
+              onChange={(e) => {
+               const val = parseInt(e.target.value) || 1;
+               updateCartItem(item.id, {
+                quantity: Math.min(Math.max(1, val), item.maxQty),
+               });
+              }}
+              className="flex-1 text-center border-0 bg-white font-semibold text-sm py-1 focus:ring-2 focus:ring-blue-400"
+              min="1"
+              max={item.maxQty}
+             />
+             <button
+              onClick={() => {
+               if (item.quantity >= item.maxQty) {
+                setOrderError(`Cannot add more ${item.name}: Only ${item.maxQty} in stock`);
+                return;
+               }
+               updateCartItem(item.id, {
+                quantity: item.quantity + 1,
+               });
+              }}
+              disabled={item.quantity >= item.maxQty}
+              className="p-1 hover:bg-gray-200 transition-colors disabled:opacity-40"
+             >
+              <Plus className="w-3.5 h-3.5 text-gray-600" />
+             </button>
+            </div>
 
            {/* Discount Input */}
            {item.maxDiscount > 0 && (

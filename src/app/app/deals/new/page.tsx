@@ -54,7 +54,10 @@ export default function NewDealPage() {
 
     const response = await fetch("/api/deals", {
      method: "POST",
-     headers: { "Content-Type": "application/json" },
+     headers: { "Content-Type": "application/json",
+        "x-pb-email": localStorage.getItem("pb_admin_email") || "",
+        "x-pb-password": localStorage.getItem("pb_admin_password") || "",
+     },
      body: JSON.stringify({
       name: formData.name,
       description: formData.description,

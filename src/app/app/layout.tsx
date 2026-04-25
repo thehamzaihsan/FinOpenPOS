@@ -1,7 +1,7 @@
 import { AppSidebar } from "@/components/AppSidebar";
 
 export const metadata = {
- title: "POS-SY - Point of Sale System",
+ title: "POS-SYS - Point of Sale System",
  icons: {
   icon: "/favicon.svg",
  },

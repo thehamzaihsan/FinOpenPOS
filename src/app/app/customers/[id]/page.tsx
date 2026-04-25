@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getSupabaseClient } from "@/lib/supabase-client";
+import { dataService } from "@/lib/data-service";
 import { ArrowLeft, Eye } from "lucide-react";
 
 export default function CustomerDetailPage() {
@@ -18,45 +18,25 @@ export default function CustomerDetailPage() {
  const [activeTab, setActiveTab] = useState<"overview" | "orders" | "khata">("overview");
  const [loading, setLoading] = useState(true);
 
- const supabase = getSupabaseClient();
-
  useEffect(() => {
   loadCustomerData();
  }, [customerId]);
 
  const loadCustomerData = async () => {
   try {
-   const [customerRes, ordersRes, khataRes] = await Promise.all([
-    supabase
-     .from("customers")
-     .select("*")
-     .eq("id", customerId)
-     .single(),
-    supabase
-     .from("orders")
-     .select("*")
-     .eq("customer_id", customerId)
-     .order("created_at", { ascending: false }),
-    supabase
-     .from("khata_accounts")
-     .select("*")
-     .eq("customer_id", customerId)
-     .single(),
+   const [customerData, ordersData, khataData] = await Promise.all([
+    dataService.getCustomer(customerId),
+    dataService.getOrdersByCustomer(customerId),
+    dataService.getKhataAccount(customerId),
    ]);
 
-   setCustomer(customerRes.data);
-   setOrders(ordersRes.data || []);
-   setKhata(khataRes.data || null);
+   setCustomer(customerData);
+   setOrders(ordersData || []);
+   setKhata(khataData || null);
 
-   // Fetch khata transactions if khata account exists
-   if (khataRes.data?.id) {
-    const { data: transactions } = await supabase
-     .from("khata_transactions")
-     .select("*")
-     .eq("khata_account_id", khataRes.data.id)
-     .order("transaction_date", { ascending: false });
-
-    setKhataTransactions(transactions || []);
+   // PocketBase expanded data for transactions if using getKhataAccount
+   if (khataData?.expand?.khata_transactions_via_khata_account) {
+    setKhataTransactions(khataData.expand.khata_transactions_via_khata_account);
    }
 
    setLoading(false);

@@ -1,28 +1,37 @@
 // app/components/LogoutButton.tsx
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
-import { logout } from "@/app/login/actions";
+import { logout } from "@/app/auth/actions";
+import pb from "@/lib/pb";
 import { Button } from "@/components/ui/button";
 import { Loader2Icon } from "lucide-react";
 
 export function LogoutButton() {
- const [error, setError] = useState<string | null>(null);
- const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
- const handleLogout = async () => {
-  setIsLoading(true);
-  setError(null);
+  const handleLogout = async () => {
+    setIsLoading(true);
+    setError(null);
 
-  const result = await logout();
+    pb.authStore.clear();
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("pb_auth");
+    }
+    const result = await logout();
 
-  if (result?.error) {
-   setError(result.error);
-  }
+    if (result?.error) {
+      setError(result.error);
+    }
 
-  setIsLoading(false);
- };
+    window.location.replace("/");
+
+    setIsLoading(false);
+  };
 
  return (
   <div className="w-full h-full">

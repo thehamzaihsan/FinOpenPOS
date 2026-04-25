@@ -164,6 +164,10 @@ export default function ImportProductsPage() {
 
    const response = await fetch("/api/products/import", {
     method: "POST",
+    headers: {
+      "x-pb-email": localStorage.getItem("pb_admin_email") || "",
+      "x-pb-password": localStorage.getItem("pb_admin_password") || "",
+    },
     body: formData,
    });
 

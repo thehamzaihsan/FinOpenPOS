@@ -86,7 +86,10 @@ export default function NewProductPage() {
    // Create product via API
    const productResponse = await fetch("/api/products", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json",
+      "x-pb-email": localStorage.getItem("pb_admin_email") || "",
+      "x-pb-password": localStorage.getItem("pb_admin_password") || "",
+    },
     body: JSON.stringify({
      name: formData.name,
      description: formData.description,
@@ -122,7 +125,10 @@ export default function NewProductPage() {
 
     const variantResponse = await fetch("/api/products/variants", {
      method: "POST",
-     headers: { "Content-Type": "application/json" },
+     headers: { "Content-Type": "application/json",
+        "x-pb-email": localStorage.getItem("pb_admin_email") || "",
+        "x-pb-password": localStorage.getItem("pb_admin_password") || "",
+     },
      body: JSON.stringify({ variants: variantData }),
     });
 

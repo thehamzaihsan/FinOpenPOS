@@ -1,5 +1,5 @@
 -- ============================================================
--- POS-SY Shop Settings for Customizer Migration
+-- POS-SYS Shop Settings for Customizer Migration
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS shop_settings (

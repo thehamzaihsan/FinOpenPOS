@@ -11,7 +11,12 @@ export default function UserCard(){
   useEffect(() => {
     const fetchProducts = async () => {
      try {
-      const response = await fetch("/api/profile");
+      const response = await fetch("/api/profile", {
+        headers: {
+          "x-pb-email": localStorage.getItem("pb_admin_email") || "",
+          "x-pb-password": localStorage.getItem("pb_admin_password") || "",
+        }
+      });
       if (!response.ok) {
        throw new Error("Failed to fetch products");
       }

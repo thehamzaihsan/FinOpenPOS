@@ -3,8 +3,8 @@ import "./globals.css";
 import Analyt from "@/components/Analytics";
 
 export const metadata: Metadata = {
- title: "POS-SY",
- description: "POS-SY by Hamza I",
+ title: "POS-SYSS",
+ description: "POS-SYSS by Hamza I",
   icons: {
   icon: [
     { rel: "icon", type: "image/svg+xml", url: "/favicon.svg" },
@@ -21,7 +21,7 @@ export default function RootLayout({
  return (
    <html lang="en" suppressHydrationWarning>
     <Analyt></Analyt>
-    <body suppressHydrationWarning className="flex flex-col min-h-screen">
+    <body suppressHydrationWarning className="flex flex-col min-h-screen font-sans">
     <main className="flex-1">{children}</main>
     <footer className="text-center text-gray-500 text-xs py-4 border-t bg-background">
      &copy; 2026 <a 
