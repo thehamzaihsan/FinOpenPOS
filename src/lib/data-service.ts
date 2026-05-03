@@ -352,6 +352,30 @@ export class DataService {
   }
 
   /**
+   * Record payment against a khata account
+   */
+  async payKhata(khataAccountId: string, amount: number, notes: string = "") {
+    try {
+      const record = await api<any>(`/api/khata-accounts/${khataAccountId}/transactions`, {
+        method: "POST",
+        body: JSON.stringify({
+          amount,
+          type: 'credit', // Credit means customer paid, decreasing balance
+          notes: notes || "Payment received",
+        }),
+      });
+      // Invalidate customer and khata related caches
+      this.invalidateCustomersCache();
+      // We don't have the customerId here easily, but we can clear all khata caches
+      // or just rely on the fact that we refresh the data in the UI
+      return record;
+    } catch (error: any) {
+      console.error('Failed to record khata payment:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Invalidate related caches after mutations
    */
   invalidateProductsCache() {

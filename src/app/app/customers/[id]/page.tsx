@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { dataService } from "@/lib/data-service";
-import { ArrowLeft, Loader2, Download } from "lucide-react";
+import { ArrowLeft, Loader2, Download, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function CustomerDetailPage() {
@@ -18,25 +18,32 @@ export default function CustomerDetailPage() {
  const [activeTab, setActiveTab] = useState<"overview" | "orders" | "khata">("overview");
  const [loading, setLoading] = useState(true);
 
+ // Payment Modal State
+ const [showPaymentModal, setShowPaymentModal] = useState(false);
+ const [paymentAmount, setPaymentAmount] = useState("");
+ const [paymentNotes, setPaymentNotes] = useState("");
+ const [submittingPayment, setSubmittingPayment] = useState(false);
+
  useEffect(() => {
   loadCustomerData();
  }, [customerId]);
 
- const loadCustomerData = async () => {
+ const loadCustomerData = async (forceRefresh = false) => {
   try {
    const [customerData, ordersData, khataData] = await Promise.all([
-    dataService.getCustomer(customerId),
+    dataService.getCustomer(customerId, forceRefresh),
     dataService.getOrdersByCustomer(customerId),
-    dataService.getKhataAccount(customerId),
+    dataService.getKhataAccount(customerId, forceRefresh),
    ]);
 
    setCustomer(customerData);
    setOrders(ordersData || []);
-   setKhata(khataData || null);
+   const kData = khataData || null;
+   setKhata(kData);
 
     // Load khata transactions
-    if (khata) {
-     const txRes = await fetch(`/api/khata-accounts/${khata.id}/transactions`);
+    if (kData) {
+     const txRes = await fetch(`/api/khata-accounts/${kData.id}/transactions?refresh=${forceRefresh ? Date.now() : ''}`);
      const txJson = await txRes.json();
      if (txJson.success) {
       setKhataTransactions(txJson.data || []);
@@ -48,6 +55,28 @@ export default function CustomerDetailPage() {
     console.error("Failed to load customer data:", error);
     setLoading(false);
    }
+  };
+
+  const handleRecordPayment = async () => {
+    if (!khata) return;
+    const amount = parseFloat(paymentAmount);
+    if (isNaN(amount) || amount <= 0) {
+      alert("Please enter a valid amount");
+      return;
+    }
+
+    setSubmittingPayment(true);
+    try {
+      await dataService.payKhata(khata.id, amount, paymentNotes);
+      setPaymentAmount("");
+      setPaymentNotes("");
+      setShowPaymentModal(false);
+      await loadCustomerData(true);
+    } catch (error: any) {
+      alert(error.message || "Failed to record payment");
+    } finally {
+      setSubmittingPayment(false);
+    }
   };
 
  if (loading) {
@@ -220,11 +249,20 @@ export default function CustomerDetailPage() {
      {khata ? (
       <>
        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-red-50 border border-red-200 p-6 rounded-xl">
-         <p className="text-sm text-red-700 font-bold">Outstanding Balance</p>
-         <p className="text-4xl font-bold text-red-900 mt-2">
-          PKR {(khata.balance || khata.current_balance || 0).toLocaleString()}
-         </p>
+        <div className="bg-red-50 border border-red-200 p-6 rounded-xl flex justify-between items-center">
+         <div>
+          <p className="text-sm text-red-700 font-bold">Outstanding Balance</p>
+          <p className="text-4xl font-bold text-red-900 mt-2">
+           PKR {(khata.balance || khata.current_balance || 0).toLocaleString()}
+          </p>
+         </div>
+         <Button 
+          onClick={() => setShowPaymentModal(true)}
+          className="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-6"
+         >
+          <Plus className="w-5 h-5 mr-2" />
+          Record Payment
+         </Button>
         </div>
        </div>
 
@@ -286,6 +324,66 @@ export default function CustomerDetailPage() {
        <p className="text-gray-400 text-sm mt-2">Create an order with partial payment to automatically open a Khata account.</p>
       </div>
      )}
+    </div>
+   )}
+
+   {/* Payment Modal */}
+   {showPaymentModal && (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+     <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div className="px-6 py-4 border-b flex justify-between items-center bg-slate-50">
+       <h3 className="text-xl font-bold text-gray-900">Record Khata Payment</h3>
+       <button onClick={() => setShowPaymentModal(false)} className="text-gray-400 hover:text-gray-600">
+        <X className="w-6 h-6" />
+       </button>
+      </div>
+      <div className="p-6 space-y-4">
+       <div>
+        <label className="block text-sm font-bold text-gray-700 mb-1">
+         Payment Amount (PKR)
+        </label>
+        <input
+         type="number"
+         value={paymentAmount}
+         onChange={(e) => setPaymentAmount(e.target.value)}
+         placeholder="Enter amount customer is paying"
+         autoFocus
+         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-lg font-bold"
+        />
+        <p className="text-xs text-gray-500 mt-1">
+         Current Balance: PKR {(khata?.current_balance || 0).toLocaleString()}
+        </p>
+       </div>
+       <div>
+        <label className="block text-sm font-bold text-gray-700 mb-1">
+         Notes (Optional)
+        </label>
+        <textarea
+         value={paymentNotes}
+         onChange={(e) => setPaymentNotes(e.target.value)}
+         placeholder="e.g. Cash payment, Bank transfer..."
+         rows={3}
+         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+        />
+       </div>
+      </div>
+      <div className="px-6 py-4 bg-gray-50 flex gap-3">
+       <Button
+        variant="outline"
+        onClick={() => setShowPaymentModal(false)}
+        className="flex-1 py-6 font-bold"
+       >
+        Cancel
+       </Button>
+       <Button
+        onClick={handleRecordPayment}
+        disabled={submittingPayment || !paymentAmount}
+        className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-6"
+       >
+        {submittingPayment ? <Loader2 className="w-5 h-5 animate-spin" /> : "Confirm Payment"}
+       </Button>
+      </div>
+     </div>
     </div>
    )}
   </div>

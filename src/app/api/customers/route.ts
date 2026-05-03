@@ -8,7 +8,14 @@ export async function GET(request: NextRequest) {
   try {
     const db = getDb();
     // Return retail customers only by default, or all active
-    const customers = db.prepare("SELECT * FROM customers WHERE is_active = 1 AND type = 'retail' ORDER BY created_at DESC").all();
+    // Join with khata_accounts to get current_balance
+    const customers = db.prepare(`
+      SELECT c.*, ka.current_balance 
+      FROM customers c
+      LEFT JOIN khata_accounts ka ON c.id = ka.customer_id
+      WHERE c.is_active = 1 AND c.type = 'retail' 
+      ORDER BY c.created_at DESC
+    `).all();
     return NextResponse.json({ success: true, data: customers });
   } catch (error) {
     return NextResponse.json({ success: false, error: "Failed to fetch customers" }, { status: 500 });
