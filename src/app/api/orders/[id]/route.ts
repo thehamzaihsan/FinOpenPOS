@@ -7,10 +7,27 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   try {
     const { id } = await params;
     const db = getDb();
-    const order = db.prepare("SELECT *, (total_amount - amount_paid) AS balance_due FROM orders WHERE id = ?").get(id) as any;
+    const order = db.prepare(`
+      SELECT o.*, (o.total_amount - o.amount_paid) AS balance_due, c.name AS customer_name, c.phone AS customer_phone
+      FROM orders o
+      LEFT JOIN customers c ON o.customer_id = c.id
+      WHERE o.id = ?
+    `).get(id) as any;
+
     if (!order) throw new Error("not found");
     const items = db.prepare("SELECT * FROM order_items WHERE order_id = ?").all(id);
-    const data = { ...order, items };
+
+    // Structure for UI compatibility
+    const data = {
+      ...order,
+      items,
+      customers: order.customer_name ? {
+        id: order.customer_id,
+        name: order.customer_name,
+        phone: order.customer_phone
+      } : null
+    };
+
     return NextResponse.json({ success: true, data });
   } catch (error) {
     return NextResponse.json({ success: false, error: "Order not found" }, { status: 404 });

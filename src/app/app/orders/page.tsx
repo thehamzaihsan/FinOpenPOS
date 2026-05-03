@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { dataService } from "@/lib/data-service";
 import Link from "next/link";
 import { Eye, Search, RefreshCw, Download } from "lucide-react";
+import { downloadFile } from "@/lib/utils";
 
 interface Order {
  id: string;
@@ -50,13 +51,13 @@ export default function OrdersPage() {
   }
  };
 
-  const handleExportCSV = () => {
-   window.open("/api/export?type=orders&format=csv", "_blank");
-  };
+   const handleExportCSV = () => {
+    downloadFile("/api/export?type=orders&format=csv");
+   };
 
-  const handleExportItems = () => {
-   window.open("/api/export?type=order_items&format=csv", "_blank");
-  };
+   const handleExportItems = () => {
+    downloadFile("/api/export?type=order_items&format=csv");
+   };
 
   const filterOrders = () => {
   let filtered = orders;

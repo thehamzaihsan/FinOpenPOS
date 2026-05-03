@@ -13,6 +13,7 @@ import {
   Download,
   Loader2
 } from "lucide-react";
+import { downloadFile } from "@/lib/utils";
 import { 
   LineChart, 
   Line, 
@@ -178,7 +179,7 @@ export default function ReportsPage() {
             <option value="30days">Last 30 Days</option>
             <option value="year">This Year</option>
           </select>
-          <Button variant="outline" size="sm" onClick={() => window.open("/api/export?type=khata&format=csv", "_blank")}>
+          <Button variant="outline" size="sm" onClick={() => downloadFile("/api/export?type=khata&format=csv")}>
             <Download className="w-4 h-4 mr-2" /> Export Khata
           </Button>
           <Button variant="outline" size="sm" onClick={handleExportPDF}>

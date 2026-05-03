@@ -7,8 +7,24 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   try {
     const db = getDb();
-    const orders = db.prepare("SELECT *, (total_amount - amount_paid) AS balance_due FROM orders ORDER BY created_at DESC").all();
-    return NextResponse.json({ success: true, data: orders });
+    const orders = db.prepare(`
+      SELECT o.*, (o.total_amount - o.amount_paid) AS balance_due, c.name AS customer_name
+      FROM orders o
+      LEFT JOIN customers c ON o.customer_id = c.id
+      ORDER BY o.created_at DESC
+    `).all();
+
+    // Map to include expand for UI compatibility
+    const expandedOrders = orders.map((o: any) => ({
+      ...o,
+      expand: {
+        customer: {
+          name: o.customer_name
+        }
+      }
+    }));
+
+    return NextResponse.json({ success: true, data: expandedOrders });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: "Failed to fetch orders: " + error.message }, { status: 500 });
   }

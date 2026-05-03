@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { dataService } from "@/lib/data-service";
 import { Plus, Eye, Search, RefreshCw, Download } from "lucide-react";
+import { downloadFile } from "@/lib/utils";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<any[]>([]);
@@ -46,15 +47,15 @@ export default function CustomersPage() {
    setFilteredCustomers(filtered);
   };
 
-   const handleExportCSV = () => {
-    window.open("/api/export?type=customers&format=csv", "_blank");
-   };
+    const handleExportCSV = () => {
+     downloadFile("/api/export?type=customers&format=csv");
+    };
 
-   const handleExportKhata = () => {
-    window.open("/api/export?type=khata&format=csv", "_blank");
-   };
+    const handleExportKhata = () => {
+      downloadFile("/api/export?type=khata&format=csv");
+    };
 
-   if (loading) {
+    if (loading) {
    return (
     <div className="p-6 flex items-center justify-center min-h-screen">
      <div className="text-gray-600 font-aeonik">Loading customers...</div>

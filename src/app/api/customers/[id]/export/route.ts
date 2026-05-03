@@ -252,7 +252,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     setTimeout(() => {
       const now = new Date();
       const timestamp = now.toISOString().replace(/[:.]/g, "-").slice(0, 19);
-      document.title = "customer_${customer.name.replace(/\\s+/g, "_")}_${timestamp}";
+      document.title = \`customer_\${customer.name.replace(/\\s+/g, "_")}_\${timestamp}\`;
       window.print();
     }, 800);
   </script>

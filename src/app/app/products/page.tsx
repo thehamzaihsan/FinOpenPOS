@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { dataService } from "@/lib/data-service";
 import { Plus, Edit2, Search, Upload, RefreshCw, Download } from "lucide-react";
+import { downloadFile } from "@/lib/utils";
 
 export default function ProductsPage() {
  const [products, setProducts] = useState<any[]>([]);
@@ -57,7 +58,7 @@ export default function ProductsPage() {
  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
 
   const handleExportCSV = () => {
-   window.open("/api/export?type=products&format=csv", "_blank");
+   downloadFile("/api/export?type=products&format=csv");
   };
 
   if (loading) {

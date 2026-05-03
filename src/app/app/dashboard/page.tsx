@@ -80,7 +80,7 @@ export default function DashboardPage() {
 
     setLastOrders(orders.slice(0, 5) || []);
     
-    setTopProducts(topProductsData.slice(0, 5).map(p => ({
+    setTopProducts(topProductsData.slice(0, 5).map((p: any) => ({
       name: p.name,
       qty: p.qty_sold,
       revenue: p.revenue || 0,

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { dataService } from "@/lib/data-service";
 import { ArrowLeft, Loader2, Download, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { downloadFile } from "@/lib/utils";
 
 export default function CustomerDetailPage() {
  const params = useParams();
@@ -98,9 +99,9 @@ export default function CustomerDetailPage() {
   const totalSpent = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
   const avgOrderValue = orders.length > 0 ? totalSpent / orders.length : 0;
 
-  const handleExportPDF = () => {
-   window.open(`/api/customers/${customerId}/export`, "_blank");
-  };
+   const handleExportPDF = () => {
+    downloadFile(`/api/customers/${customerId}/export`);
+   };
 
  return (
   <div className="p-8 space-y-8 font-aeonik">
