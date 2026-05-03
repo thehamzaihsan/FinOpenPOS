@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
-import pb from "@/lib/pb";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -41,22 +40,33 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
     if (checked.current) return;
     checked.current = true;
 
-    const checkAuth = () => {
-      if (!pb.authStore.isValid) {
+    const checkAuth = async () => {
+      const session = localStorage.getItem("pos_session");
+      if (!session) {
         router.replace("/auth/login");
         return;
       }
 
-      setUserName(pb.authStore.model?.name || pb.authStore.model?.email?.split("@")[0] || "User");
-      setLoading(false);
+      try {
+          const res = await fetch("/api/profile", {
+              headers: { "Authorization": `Bearer ${session}` }
+          });
+          if (!res.ok) throw new Error("unauthorized");
+          const json = await res.json();
+          setUserName(json.data?.email?.split("@")[0] || "User");
+          setLoading(false);
+      } catch (e) {
+          localStorage.removeItem("pos_session");
+          router.replace("/auth/login");
+      }
     };
 
     checkAuth();
   }, [router]);
 
   const handleLogout = () => {
-    pb.authStore.clear();
-    router.push("/auth/login");
+    localStorage.removeItem("pos_session");
+    router.push("/auth/login?logout=true");
   };
 
   if (loading) {
@@ -78,7 +88,7 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
           <div className="p-1 bg-blue-600">
            <ShoppingCart className="w-5 h-5 text-white" />
           </div>
-          <span className="text-lg font-bold text-gray-900">FinOpenPOS</span>
+           <span className="text-lg font-bold text-gray-900">POS-SYS</span>
          </div>
          <button onClick={() => setMobileOpen(false)} className="lg:hidden text-gray-600">
           <X className="w-5 h-5" />

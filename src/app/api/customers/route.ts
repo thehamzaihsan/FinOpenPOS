@@ -1,21 +1,14 @@
 import { NextResponse, NextRequest } from "next/server";
-import PocketBase from "pocketbase";
+import { randomUUID } from "node:crypto";
+import { getDb } from "@/lib/sqlite";
 
-async function getAdminClient(request: NextRequest) {
-  const email = request.headers.get("x-pb-email") || "";
-  const password = request.headers.get("x-pb-password") || "";
-  const client = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL || "http://127.0.0.1:8090");
-  await client.admins.authWithPassword(email, password);
-  return client;
-}
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    const pb = await getAdminClient(request);
-    const customers = await pb.collection("customers").getFullList({
-      filter: "is_active = true",
-      sort: "-created",
-    });
+    const db = getDb();
+    // Return retail customers only by default, or all active
+    const customers = db.prepare("SELECT * FROM customers WHERE is_active = 1 AND type = 'retail' ORDER BY created_at DESC").all();
     return NextResponse.json({ success: true, data: customers });
   } catch (error) {
     return NextResponse.json({ success: false, error: "Failed to fetch customers" }, { status: 500 });
@@ -24,11 +17,27 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const pb = await getAdminClient(request);
+    const db = getDb();
     const body = await request.json();
-    const customer = await pb.collection("customers").create(body);
+    
+    if (!body.name) {
+      return NextResponse.json({ success: false, error: "Customer name is required" }, { status: 400 });
+    }
+
+    const id = randomUUID();
+    db.prepare(
+      "INSERT INTO customers (id, name, phone, address, type, is_active, created_at) VALUES (?, ?, ?, ?, 'retail', 1, ?)"
+    ).run(
+      id, 
+      body.name, 
+      body.phone || "", 
+      body.address || "", 
+      new Date().toISOString()
+    );
+    
+    const customer = db.prepare("SELECT * FROM customers WHERE id = ?").get(id);
     return NextResponse.json({ success: true, data: customer });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: "Failed to create customer" }, { status: 500 });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: "Failed to create customer: " + error.message }, { status: 500 });
   }
 }

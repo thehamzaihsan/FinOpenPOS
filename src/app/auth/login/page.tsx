@@ -1,16 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import pb from "@/lib/pb";
-import { LogIn, Lock, AlertCircle, Loader2, ArrowLeft } from "lucide-react";
+import { LogIn, AlertCircle, Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppProfile, getActiveProfile } from "@/lib/profile-client";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [profile, setProfile] = useState<AppProfile | null>(null);
@@ -25,30 +24,26 @@ export default function LoginPage() {
     checked.current = true;
 
     const boot = async () => {
-      // Wait briefly for PB to be ready
-      const maxRetries = 10;
-      for (let i = 0; i < maxRetries; i++) {
+      if (searchParams.get("logout") === "true") {
+        localStorage.removeItem("pos_session");
+      }
+
+      const savedSession = localStorage.getItem("pos_session");
+      if (savedSession) {
         try {
-          await pb.health.check();
-          break;
-        } catch {
-          if (i === maxRetries - 1) {
-            setError("Server not ready. Please try again.");
-            setBooting(false);
+          const res = await fetch("/api/profile", {
+            headers: { "Authorization": `Bearer ${savedSession}` }
+          });
+          if (res.ok) {
+            router.replace("/app/dashboard");
             return;
           }
-          await new Promise((r) => setTimeout(r, 500));
+        } catch (e) {
+          localStorage.removeItem("pos_session");
         }
       }
 
-      if (pb.authStore.isValid) {
-        router.replace("/app/dashboard");
-        return;
-      }
-
       try {
-        // Never call switchProfile here — PocketBase is already running
-        // switchProfile restarts PocketBase which loses the admin session
         const active = await getActiveProfile();
         setProfile(active);
       } catch (err) {
@@ -77,18 +72,31 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      await pb.admins.authWithPassword(profile.adminEmail, password);
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: profile.adminEmail,
+          password,
+          profileId: profile.id
+        })
+      });
 
-      // Manually persist cookie before navigation
-      if (typeof document !== "undefined") {
-        document.cookie = pb.authStore.exportToCookie({ httpOnly: false });
-        localStorage.setItem("pb_admin_email", profile.adminEmail);
-        localStorage.setItem("pb_admin_password", password);
+      let json: any = {};
+      try {
+        json = await res.json();
+      } catch {
+        throw new Error("Server error — please try again");
+      }
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Invalid credentials");
       }
 
+      localStorage.setItem("pos_session", json.sessionId);
       router.replace("/app/dashboard");
     } catch (err: any) {
-      setError(err.message || "Invalid password");
+      console.error("Login failed:", err);
+      setError(err.message || "Invalid credentials or server error");
     } finally {
       setLoading(false);
     }
@@ -98,8 +106,8 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-3" />
-          <p className="text-gray-600">Loading login...</p>
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-gray-600">Loading shop login...</p>
         </div>
       </div>
     );
@@ -116,7 +124,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-3xl">Welcome Back</CardTitle>
           <CardDescription>
-            {profile ? `Login to ${profile.shopName}` : "Select a shop from app start"}
+            {profile ? `Login to ${profile.shopName}` : "Shop profile not selected"}
           </CardDescription>
         </CardHeader>
         
@@ -125,23 +133,25 @@ export default function LoginPage() {
             {error && (
               <div className="bg-red-50 border border-red-200 p-4 rounded-lg flex items-center gap-3 text-red-700">
                 <AlertCircle className="w-5 h-5" />
-                {error}
+                <span className="text-sm font-medium">{error}</span>
               </div>
             )}
 
             {profile && (
               <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg text-sm text-slate-700">
                 <p className="font-semibold text-slate-900">{profile.shopName}</p>
-                <p>{profile.shopPhone || "No phone"}</p>
+                <p>{profile.shopPhone || "No phone contact"}</p>
               </div>
             )}
             
             <div className="space-y-2">
-              <Label>Password</Label>
+              <Label>Admin Password</Label>
               <Input 
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoFocus
+                placeholder="Enter password"
               />
             </div>
           </CardContent>
@@ -162,11 +172,26 @@ export default function LoginPage() {
               className="w-full"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to App Start
+              Change Shop
             </Button>
           </CardFooter>
         </form>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-gray-600">Loading shop login...</p>
+        </div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

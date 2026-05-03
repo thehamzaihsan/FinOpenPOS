@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { dataService } from "@/lib/data-service";
-import { Plus, Edit2, Search, Upload, RefreshCw } from "lucide-react";
+import { Plus, Edit2, Search, Upload, RefreshCw, Download } from "lucide-react";
 
 export default function ProductsPage() {
  const [products, setProducts] = useState<any[]>([]);
@@ -56,7 +56,11 @@ export default function ProductsPage() {
  );
  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
 
- if (loading) {
+  const handleExportCSV = () => {
+   window.open("/api/export?type=products&format=csv", "_blank");
+  };
+
+  if (loading) {
   return (
    <div className="p-6 flex items-center justify-center min-h-screen">
     <div className="text-gray-600 font-aeonik">Loading products...</div>
@@ -68,15 +72,22 @@ export default function ProductsPage() {
   <div className="p-6 space-y-6 font-aeonik">
    <div className="flex items-center justify-between">
     <h1 className="text-3xl font-bold text-gray-900">Products</h1>
-    <div className="flex gap-2">
-     <button
-      onClick={() => loadProducts(true)}
-      title="Refresh data"
-      className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-     >
-      <RefreshCw className="w-4 h-4" />
-      Refresh
-     </button>
+     <div className="flex gap-2">
+      <button
+       onClick={handleExportCSV}
+       className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+      >
+       <Download className="w-4 h-4" />
+       Export CSV
+      </button>
+      <button
+       onClick={() => loadProducts(true)}
+       title="Refresh data"
+       className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+      >
+       <RefreshCw className="w-4 h-4" />
+       Refresh
+      </button>
      <Link
       href="/app/products/import"
       className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50"
@@ -149,10 +160,10 @@ export default function ProductsPage() {
            </td>
            <td className="px-6 py-4 text-gray-600">{product.item_code || "-"}</td>
            <td className="px-6 py-4 text-gray-900 font-medium">
-            PKR {product.sale_price.toLocaleString()}
+            PKR {(product.sale_price || product.price || 0).toLocaleString()}
            </td>
-           <td className={`px-6 py-4 font-medium ${product.quantity <= (product.min_stock || 5) ? 'text-red-600' : 'text-gray-600'}`}>
-            {product.quantity}
+           <td className={`px-6 py-4 font-medium ${(product.quantity || product.stock || 0) <= (product.min_stock || 5) ? 'text-red-600' : 'text-gray-600'}`}>
+            {product.quantity || product.stock || 0}
            </td>
            <td className="px-6 py-4 text-gray-600 capitalize">
             {product.unit}

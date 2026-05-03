@@ -1,35 +1,17 @@
 import { NextResponse } from "next/server";
-import PocketBase from "pocketbase";
-import { ensureCollections } from "@/lib/ensure-collections";
+import { getDb } from "@/lib/sqlite";
 
 export const dynamic = "force-dynamic";
-
-const PB_URL = process.env.NEXT_PUBLIC_POCKETBASE_URL || "http://127.0.0.1:8090";
-const ADMIN_EMAIL = "admin@possys.com";
-const ADMIN_PASSWORD = "PosSys@123456";
-
-async function getAdminClient() {
-  const pb = new PocketBase(PB_URL);
-  try {
-    await pb.admins.authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
-  } catch {
-    const res = await pb.send("/api/admins/auth-with-password", {
-      method: "POST",
-      body: { identity: ADMIN_EMAIL, password: ADMIN_PASSWORD },
-    });
-    pb.authStore.save(res.token, res.admin);
-  }
-  return pb;
-}
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const pb = await getAdminClient();
-    const order = await pb.collection("orders").getOne(id, {
-      expand: "customer,order_items_via_order.product",
-    });
-    return NextResponse.json({ success: true, data: order });
+    const db = getDb();
+    const order = db.prepare("SELECT *, (total_amount - amount_paid) AS balance_due FROM orders WHERE id = ?").get(id) as any;
+    if (!order) throw new Error("not found");
+    const items = db.prepare("SELECT * FROM order_items WHERE order_id = ?").all(id);
+    const data = { ...order, items };
+    return NextResponse.json({ success: true, data });
   } catch (error) {
     return NextResponse.json({ success: false, error: "Order not found" }, { status: 404 });
   }
@@ -38,27 +20,38 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const pb = await getAdminClient();
+    const db = getDb();
     const body = await request.json();
     const action = body.action;
 
     if (action === "refund") {
-      const order = await pb.collection("orders").getOne(id, {
-        expand: "order_items_via_order",
-      });
-
-      for (const item of order.expand?.order_items_via_order || []) {
-        const product = await pb.collection("products").getOne(item.product);
-        await pb.collection("products").update(item.product, {
-          stock: (product.stock || 0) + item.quantity,
-        });
+      const items = db.prepare("SELECT * FROM order_items WHERE order_id = ?").all(id) as any[];
+      for (const item of items) {
+        const product = db.prepare("SELECT * FROM products WHERE id = ?").get(item.product_id) as any;
+        if (product) {
+          db.prepare("UPDATE products SET quantity = quantity + ?, stock = stock + ? WHERE id = ?").run(
+            item.quantity || 0,
+            item.quantity || 0,
+            item.product_id
+          );
+        }
       }
-
-      await pb.collection("orders").update(id, { status: "refunded" });
+      db.prepare("UPDATE orders SET status = 'refunded' WHERE id = ?").run(id);
       return NextResponse.json({ success: true, message: "Order refunded" });
     }
 
-    const order = await pb.collection("orders").update(id, body);
+    const existing = db.prepare("SELECT * FROM orders WHERE id = ?").get(id) as any;
+    if (!existing) return NextResponse.json({ success: false, error: "Order not found" }, { status: 404 });
+    db.prepare("UPDATE orders SET customer_id = ?, total_amount = ?, payment_method = ?, status = ?, is_khata = ?, is_active = ? WHERE id = ?").run(
+      body.customer_id ?? existing.customer_id,
+      Number(body.total_amount ?? existing.total_amount ?? 0),
+      body.payment_method ?? existing.payment_method,
+      body.status ?? existing.status,
+      body.is_khata === undefined ? existing.is_khata : (body.is_khata ? 1 : 0),
+      body.is_active === undefined ? existing.is_active : (body.is_active ? 1 : 0),
+      id
+    );
+    const order = db.prepare("SELECT * FROM orders WHERE id = ?").get(id);
     return NextResponse.json({ success: true, data: order });
   } catch (error) {
     return NextResponse.json({ success: false, error: "Failed to update order" }, { status: 500 });
@@ -68,8 +61,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const pb = await getAdminClient();
-    await pb.collection("orders").delete(id);
+    const db = getDb();
+    db.prepare("DELETE FROM order_items WHERE order_id = ?").run(id);
+    db.prepare("DELETE FROM orders WHERE id = ?").run(id);
     return NextResponse.json({ success: true, message: "Order deleted" });
   } catch (error) {
     return NextResponse.json({ success: false, error: "Failed to delete order" }, { status: 500 });

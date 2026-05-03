@@ -88,10 +88,10 @@ TOTAL ISSUES FOUND: 60+
     - Confuses users with stale errors
     - File: pos/page.tsx
 
-14. DIRECT POCKETBASE CALLS BYPASSING API LAYER
-    - Inconsistent data access patterns
-    - Cache invalidation unpredictable
-    - 5 files affected
+14. DEPRECATED EXTERNAL SERVICES REMOVED
+   - Migrated to local Node.js 22 SQLite
+   - Removed all external service dependencies
+   - File: src/lib/sqlite.ts
 
 15. NO ROLE-BASED ACCESS CONTROL
     - Auth service has isAdmin() but not used
@@ -136,10 +136,9 @@ TOTAL ISSUES FOUND: 60+
 🔵 LOW PRIORITY ISSUES
 ================================================================================
 
-22. HARDCODED POCKETBASE URL
-    - Not using environment variables
-    - Hard to change for production
-    - File: src/lib/pb.ts
+22. LOCAL DATABASE PATH
+    - Paths are relative to process root
+    - File: src/lib/sqlite.ts
 
 23. NO BOUNDARY CHECKS FOR PAGINATION
     - currentPage not validated <= totalPages
@@ -154,8 +153,8 @@ API/Backend Issues:          13 (Missing endpoints, validation, error handling)
 State Management Issues:      8 (Cache, loading, pagination)
 UX Issues:                   15 (Alerts, errors, loading feedback)
 Security Issues:              2 (No RBAC, no validation)
-Architecture Issues:          5 (Direct PocketBase calls)
-Configuration Issues:         1 (Hardcoded URL)
+Architecture Issues:          0 (External services removed)
+Configuration Issues:         0 (Local setup)
 
 ================================================================================
 IMPACT ANALYSIS

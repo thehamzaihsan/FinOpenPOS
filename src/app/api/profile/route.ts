@@ -1,29 +1,32 @@
 import { NextResponse, NextRequest } from "next/server";
-import PocketBase from "pocketbase";
+import { getSession } from "@/lib/sqlite";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL || "http://127.0.0.1:8090");
-    
-    pb.authStore.loadFromCookie(request.headers.get('cookie') || '');
+    // Try Authorization header first
+    const authHeader = request.headers.get("authorization") || "";
+    let sessionId = authHeader.startsWith("Bearer ") ? authHeader.substring(7) : "";
 
-    if (pb.authStore.isValid) {
-        try {
-            await pb.collection('admins').authRefresh();
-        } catch (_) {
-            pb.authStore.clear();
-        }
+    // Fallback to cookies
+    if (!sessionId) {
+      const cookie = request.headers.get("cookie") || "";
+      sessionId = cookie
+        .split(";")
+        .map((x) => x.trim())
+        .find((x) => x.startsWith("pos_session=") || x.startsWith("fin_session="))
+        ?.split("=")[1] || "";
     }
 
-    if (!pb.authStore.isValid) {
-        return NextResponse.json({ success: false, error: "Not authenticated" }, { status: 401 });
+    if (!sessionId) {
+      return NextResponse.json({ success: false, error: "Not authenticated" }, { status: 401 });
     }
-
-    const user = pb.authStore.model;
-    return NextResponse.json({ success: true, data: user });
-
+    const session = getSession(sessionId);
+    if (!session) {
+      return NextResponse.json({ success: false, error: "Not authenticated" }, { status: 401 });
+    }
+    return NextResponse.json({ success: true, data: session.user });
   } catch (error) {
     return NextResponse.json({ success: false, error: "Failed to fetch profile" }, { status: 500 });
   }

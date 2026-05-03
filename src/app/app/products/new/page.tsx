@@ -83,14 +83,8 @@ export default function NewProductPage() {
     return;
    }
 
-   // Create product via API
-   const productResponse = await fetch("/api/products", {
-    method: "POST",
-    headers: { "Content-Type": "application/json",
-      "x-pb-email": localStorage.getItem("pb_admin_email") || "",
-      "x-pb-password": localStorage.getItem("pb_admin_password") || "",
-    },
-    body: JSON.stringify({
+   // Create product via dataService
+   const product = await dataService.createProduct({
      name: formData.name,
      description: formData.description,
      purchase_price: formData.purchasePrice,
@@ -100,46 +94,25 @@ export default function NewProductPage() {
      quantity: variants.length === 0 ? formData.quantity : 0,
      min_discount: formData.minDiscount,
      max_discount: formData.maxDiscount,
-    }),
    });
-
-   if (!productResponse.ok) {
-    const error = await productResponse.json();
-    throw new Error(error.error || "Failed to create product");
-   }
-
-   const { data: product } = await productResponse.json();
 
    // Add variants if any
    if (variants.length > 0) {
-    const variantData = variants.map((v) => ({
-     product_id: product.id,
-     variant_name: v.name,
-     item_code: v.itemCode,
-     purchase_price: v.purchasePrice,
-     sale_price: v.salePrice,
-     quantity: v.quantity,
-     min_discount: v.minDiscount,
-     max_discount: v.maxDiscount,
-    }));
-
-    const variantResponse = await fetch("/api/products/variants", {
-     method: "POST",
-     headers: { "Content-Type": "application/json",
-        "x-pb-email": localStorage.getItem("pb_admin_email") || "",
-        "x-pb-password": localStorage.getItem("pb_admin_password") || "",
-     },
-     body: JSON.stringify({ variants: variantData }),
-    });
-
-    if (!variantResponse.ok) {
-     const error = await variantResponse.json();
-     throw new Error(error.error || "Failed to add variants");
+    for (const v of variants) {
+      await dataService.createVariant({
+        product: product.id,
+        variant_name: v.name,
+        item_code: v.itemCode,
+        purchase_price: v.purchasePrice,
+        sale_price: v.salePrice,
+        quantity: v.quantity,
+        min_discount: v.minDiscount,
+        max_discount: v.maxDiscount,
+      });
     }
    }
 
    alert("Product created successfully!");
-   dataService.invalidateProductsCache();
    router.push("/app/products");
   } catch (error) {
    console.error("Failed to create product:", error);

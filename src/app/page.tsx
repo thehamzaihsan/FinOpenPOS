@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import pb from "@/lib/pb";
 import { AppProfile, getActiveProfile, listProfiles, switchProfile } from "@/lib/profile-client";
 import { Loader2, LogIn, PlusCircle, Store } from "lucide-react";
 
@@ -16,15 +15,19 @@ export default function Home() {
 
   useEffect(() => {
     const boot = async () => {
-      if (pb.authStore.isValid) {
-        // Double check if PB is actually reachable
+      // Check SQLite session for single-user feel
+      const savedSession = localStorage.getItem("pos_session");
+      if (savedSession) {
         try {
-          await pb.health.check();
-          router.replace("/app/dashboard");
-          return;
-        } catch {
-          console.log("PB isValid but unreachable, checking profile...");
-          // PB not up yet or token invalid, check if we have a profile to start
+          const res = await fetch("/api/profile", {
+            headers: { "Authorization": `Bearer ${savedSession}` }
+          });
+          if (res.ok) {
+            router.replace("/app/dashboard");
+            return;
+          }
+        } catch (e) {
+          localStorage.removeItem("pos_session");
         }
       }
 
@@ -38,9 +41,19 @@ export default function Home() {
       if (allProfiles.length > 0) {
         const preferred = activeProfile?.id || allProfiles[0].id;
         setSelectedProfileId(preferred);
+        
+        if (!activeProfile || activeProfile.id !== preferred) {
+            await switchProfile(preferred);
+            await new Promise((r) => setTimeout(r, 500));
+        }
+        
+        // Go to login if not authenticated
+        router.push(`/auth/login?profileId=${encodeURIComponent(preferred)}`);
+        return;
+      } else {
+        router.push("/auth/onboarding");
+        return;
       }
-
-      setLoading(false);
     };
 
     boot();
@@ -60,12 +73,10 @@ export default function Home() {
     setError("");
     setContinuing(true);
     try {
-      // Only switch profile if it's different from the currently active one
       const active = await getActiveProfile().catch(() => null);
       if (!active || active.id !== selectedProfileId) {
         await switchProfile(selectedProfileId);
-        // Wait for PocketBase to be ready after restart
-        await new Promise((r) => setTimeout(r, 2000));
+        await new Promise((r) => setTimeout(r, 1000));
       }
       router.push(`/auth/login?profileId=${encodeURIComponent(selectedProfileId)}`);
     } catch (err) {
@@ -75,7 +86,7 @@ export default function Home() {
     }
   };
 
-  if (loading) {
+  if (loading && !continuing) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center">

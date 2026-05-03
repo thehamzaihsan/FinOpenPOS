@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { dataService } from "@/lib/data-service";
-import { Plus, Eye, Search, RefreshCw } from "lucide-react";
+import { Plus, Eye, Search, RefreshCw, Download } from "lucide-react";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<any[]>([]);
@@ -46,7 +46,15 @@ export default function CustomersPage() {
    setFilteredCustomers(filtered);
   };
 
-  if (loading) {
+   const handleExportCSV = () => {
+    window.open("/api/export?type=customers&format=csv", "_blank");
+   };
+
+   const handleExportKhata = () => {
+    window.open("/api/export?type=khata&format=csv", "_blank");
+   };
+
+   if (loading) {
    return (
     <div className="p-6 flex items-center justify-center min-h-screen">
      <div className="text-gray-600 font-aeonik">Loading customers...</div>
@@ -57,24 +65,37 @@ export default function CustomersPage() {
   return (
    <div className="p-6 space-y-6 font-aeonik">
     <div className="flex items-center justify-between">
-     <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
-     <div className="flex gap-2">
-      <button
-       onClick={() => loadCustomers(true)}
-       title="Refresh data"
-       className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium transition-colors"
-      >
-       <RefreshCw className="w-4 h-4" />
-       Refresh
-      </button>
-      <Link
-       href="/app/customers/new"
-       className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 font-medium transition-all hover:shadow-lg"
-      >
-       <Plus className="w-4 h-4" />
-       Add Customer
-      </Link>
-     </div>
+      <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
+      <div className="flex gap-2">
+       <button
+        onClick={handleExportCSV}
+        className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+       >
+        <Download className="w-4 h-4" />
+        Export
+       </button>
+       <button
+        onClick={handleExportKhata}
+        className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+       >
+        <Download className="w-4 h-4" />
+        Khata
+       </button>
+       <button
+        onClick={() => loadCustomers(true)}
+        className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+       >
+        <RefreshCw className="w-4 h-4" />
+        Refresh
+       </button>
+       <Link
+        href="/app/customers/new"
+        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-all hover:shadow-lg"
+       >
+        <Plus className="w-4 h-4" />
+        Add Customer
+       </Link>
+      </div>
     </div>
 
     {/* Search Bar */}

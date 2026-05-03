@@ -1,73 +1,114 @@
 /**
- * Data Service - Centralized data fetching with automatic caching (PocketBase Version)
- * All database interactions go through here for consistent caching behavior.
+ * Data Service - Centralized data fetching with automatic caching (SQLite API Version)
  */
 
-import pb from './pb';
-import { cacheManager } from './cache-manager';
-import { ensureCollections } from './ensure-collections';
+import { cacheManager } from "./cache-manager";
 
-async function initCollections() {
-  try {
-    await ensureCollections();
-  } catch (e) {
-    console.error('Failed to init collections:', e);
+async function api<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers || {}),
+    },
+    cache: "no-store",
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || !json?.success) {
+    throw new Error(json?.error || `Request failed: ${url}`);
   }
+  return json.data as T;
 }
 
 export class DataService {
   /**
    * Fetch products with cache (5 min TTL)
    */
-  async getProducts(forceRefresh = false) {
-    await initCollections();
-    
+  async getProducts(forceRefresh = false): Promise<any[]> {
     const cacheKey = 'products_list';
 
     if (!forceRefresh) {
-      const cached = cacheManager.get(cacheKey);
+      const cached = cacheManager.get<any[]>(cacheKey);
       if (cached) return cached;
     }
 
     try {
-      // PocketBase getFullList automatically handles pagination if needed, or gets all
-      const records = await pb.collection('products').getFullList({
-        filter: 'is_active = true',
-        sort: '-created',
-      });
+      const records = await api<any[]>("/api/products");
 
       cacheManager.set(cacheKey, records || [], 5);
       return records || [];
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch products:', error);
       return [];
     }
   }
 
   /**
+   * Fetch single product
+   */
+  async getProduct(productId: string) {
+    try {
+      const records = (await this.getProducts(true)) as any[];
+      return records.find((x: any) => x.id === productId) || null;
+    } catch (error) {
+      console.error('Failed to fetch product:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Create product
+   */
+  async createProduct(data: any) {
+    try {
+      const record = await api<any>("/api/products", {
+        method: "POST",
+        body: JSON.stringify({ ...data, is_active: true }),
+      });
+      this.invalidateProductsCache();
+      return record;
+    } catch (error) {
+      console.error('Failed to create product:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Fetch customers with cache (5 min TTL)
    */
-  async getCustomers(forceRefresh = false) {
-    await initCollections();
-    
+  async getCustomers(forceRefresh = false): Promise<any[]> {
     const cacheKey = 'customers_list';
 
     if (!forceRefresh) {
-      const cached = cacheManager.get(cacheKey);
+      const cached = cacheManager.get<any[]>(cacheKey);
       if (cached) return cached;
     }
 
     try {
-      const records = await pb.collection('customers').getFullList({
-        filter: 'is_active = true',
-        sort: '-created',
-      });
+      const records = await api<any[]>("/api/customers");
 
       cacheManager.set(cacheKey, records || [], 5);
       return records || [];
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch customers:', error);
       return [];
+    }
+  }
+
+  /**
+   * Create customer
+   */
+  async createCustomer(data: any) {
+    try {
+      const record = await api<any>("/api/customers", {
+        method: "POST",
+        body: JSON.stringify({ ...data, is_active: true }),
+      });
+      this.invalidateCustomersCache();
+      return record;
+    } catch (error) {
+      console.error('Failed to create customer:', error);
+      throw error;
     }
   }
 
@@ -83,10 +124,11 @@ export class DataService {
     }
 
     try {
-      const record = await pb.collection('customers').getOne(customerId);
-      cacheManager.set(cacheKey, record, 10);
+      const records = (await this.getCustomers(true)) as any[];
+      const record = records.find((x: any) => x.id === customerId) || null;
+      if (record) cacheManager.set(cacheKey, record, 10);
       return record;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch customer:', error);
       return null;
     }
@@ -95,27 +137,41 @@ export class DataService {
   /**
    * Fetch orders with cache (3 min TTL)
    */
-  async getOrders(forceRefresh = false) {
-    await initCollections();
-    
+  async getOrders(forceRefresh = false): Promise<any[]> {
     const cacheKey = 'orders_list';
 
     if (!forceRefresh) {
-      const cached = cacheManager.get(cacheKey);
+      const cached = cacheManager.get<any[]>(cacheKey);
       if (cached) return cached;
     }
 
     try {
-      const records = await pb.collection('orders').getFullList({
-        sort: '-created',
-        expand: 'customer',
-      });
+      const records = await api<any[]>("/api/orders");
 
       cacheManager.set(cacheKey, records || [], 3);
       return records || [];
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch orders:', error);
       return [];
+    }
+  }
+
+  /**
+   * Create order
+   */
+  async createOrder(data: any) {
+    try {
+      const record = await api<any>("/api/orders", {
+        method: "POST",
+        body: JSON.stringify({ ...data, is_active: true }),
+      });
+
+      this.invalidateOrdersCache();
+      this.invalidateProductsCache();
+      return record;
+    } catch (error) {
+      console.error('Failed to create order:', error);
+      throw error;
     }
   }
 
@@ -131,12 +187,11 @@ export class DataService {
     }
 
     try {
-      const record = await pb.collection('orders').getOne(orderId, {
-        expand: 'customer,order_items_via_order.product',
-      });
-      cacheManager.set(cacheKey, record, 5);
+      const records = (await this.getOrders(true)) as any[];
+      const record = records.find((x: any) => x.id === orderId) || null;
+      if (record) cacheManager.set(cacheKey, record, 5);
       return record;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch order:', error);
       return null;
     }
@@ -145,125 +200,130 @@ export class DataService {
   /**
    * Fetch deals with cache (5 min TTL)
    */
-  async getDeals(forceRefresh = false) {
+  async getDeals(forceRefresh = false): Promise<any[]> {
     const cacheKey = 'deals_list';
 
     if (!forceRefresh) {
-      const cached = cacheManager.get(cacheKey);
+      const cached = cacheManager.get<any[]>(cacheKey);
       if (cached) return cached;
     }
 
     try {
-      const records = await pb.collection('deals').getFullList({
-        filter: 'is_active = true',
-        sort: '-created',
-        expand: 'deal_items_via_deal.product',
-      });
+      const records = await api<any[]>("/api/deals");
 
       cacheManager.set(cacheKey, records || [], 5);
       return records || [];
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch deals:', error);
       return [];
     }
   }
 
   /**
-   * Fetch reports data with cache (5 min TTL)
+   * Create deal
    */
-  async getDashboardStats() {
-    await initCollections();
-    
-    const cacheKey = 'dashboard_stats';
-    const cached = cacheManager.get(cacheKey);
-    if (cached) return cached;
-
+  async createDeal(data: any) {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayIso = today.toISOString();
-
-      // Get today's orders
-      const todayOrders = await pb.collection('orders').getFullList({
-        filter: `created >= "${todayIso}"`,
+      const record = await api<any>("/api/deals", {
+        method: "POST",
+        body: JSON.stringify({ ...data, is_active: true }),
       });
 
-      const todaysSales = todayOrders.reduce((sum, order) => sum + (order.total || order.total_amount || 0), 0);
-
-      // Get outstanding khata
-      const khataAccounts = await pb.collection('khata_accounts').getFullList({
-        filter: 'balance > 0',
-      });
-
-      const outstandingKhata = khataAccounts.reduce((sum, account) => sum + (account.balance || 0), 0);
-
-      // Last 7 days sales
-      const last7Days = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        d.setHours(0, 0, 0, 0);
-        const start = d.toISOString();
-        
-        const nextD = new Date(d);
-        nextD.setDate(nextD.getDate() + 1);
-        const end = nextD.toISOString();
-
-        const dayOrders = await pb.collection('orders').getFullList({
-          filter: `created >= "${start}" && created < "${end}"`,
-        });
-
-        const dayTotal = dayOrders.reduce((sum, order) => sum + (order.total || order.total_amount || 0), 0);
-        last7Days.push({
-          date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-          sales: dayTotal,
-        });
-      }
-
-      const stats = {
-        todaysSales,
-        ordersToday: todayOrders.length,
-        outstandingKhata,
-        customersWithKhata: khataAccounts.length,
-        last7Days,
-      };
-
-      cacheManager.set(cacheKey, stats, 5);
-      return stats;
+      this.invalidateDealsCache();
+      return record;
     } catch (error) {
-      console.error('Failed to fetch dashboard stats:', error);
+      console.error('Failed to create deal:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get shop settings
+   */
+  async getShopSettings() {
+    try {
+      const res = await fetch("/api/settings/shop", { cache: "no-store" });
+      const json = await res.json().catch(() => ({}));
+      if (res.status === 404) return null;
+      if (!res.ok || !json?.success) return null;
+      return json.data;
+    } catch (error) {
+      console.error('Failed to fetch shop settings:', error);
       return null;
+    }
+  }
+
+  /**
+   * Update shop settings
+   */
+  async updateShopSettings(id: string | null, data: any) {
+    try {
+      if (id) {
+        return await api<any>("/api/settings/shop", { method: "PUT", body: JSON.stringify(data) });
+      }
+      return await api<any>("/api/settings/shop", { method: "POST", body: JSON.stringify(data) });
+    } catch (error) {
+      console.error('Failed to update shop settings:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create product variant
+   */
+  async createVariant(data: any) {
+    try {
+      const record = await api<any>("/api/products/variants", {
+        method: "POST",
+        body: JSON.stringify({ ...data, is_active: true }),
+      });
+      return record;
+    } catch (error) {
+      console.error('Failed to create variant:', error);
+      throw error;
     }
   }
 
   /**
    * Fetch reports data with cache (5 min TTL)
    */
-  async getReportData(type: 'dashboard' | 'profit' | 'khata-stats') {
-    // In the PocketBase Tauri version, we compute reports client-side
-    // or store them in a local cache/summary collection.
-    // For now, this is a placeholder or you can implement client-side aggregation.
-    console.warn(`Report fetching for ${type} should be implemented using client-side aggregation in Tauri version.`);
-    return null;
-  }
+  async getDashboardStats(): Promise<{
+    todaysSales: number;
+    ordersToday: number;
+    outstandingKhata: number;
+    customersWithKhata: number;
+    last7Days: { date: string; sales: number }[];
+    lowStock: any[];
+  } | null> {
+    const cacheKey = 'dashboard_stats';
+    const cached = cacheManager.get<{
+      todaysSales: number;
+      ordersToday: number;
+      outstandingKhata: number;
+      customersWithKhata: number;
+      last7Days: { date: string; sales: number }[];
+      lowStock: any[];
+    }>(cacheKey);
+    if (cached) return cached;
 
-  /**
-   * Invalidate specific cache
-   */
-  invalidateCache(key: string) {
-    cacheManager.clear(key);
+    try {
+      const data = await api<any>("/api/reports/dashboard");
+      cacheManager.set(cacheKey, data, 5);
+      return data;
+    } catch (error: any) {
+      console.error('Failed to fetch dashboard stats:', error);
+      return null;
+    }
   }
 
   /**
    * Fetch orders for specific customer
    */
-  async getOrdersByCustomer(customerId: string) {
+  async getOrdersByCustomer(customerId: string): Promise<any[]> {
     try {
-      return await pb.collection('orders').getFullList({
-        filter: `customer_id = "${customerId}"`,
-        sort: '-created',
-      });
-    } catch (error) {
+      const orders = (await this.getOrders(true)) as any[];
+      return orders.filter((o: any) => o.customer_id === customerId);
+    } catch (error: any) {
       console.error('Failed to fetch customer orders:', error);
       return [];
     }
@@ -281,15 +341,11 @@ export class DataService {
     }
 
     try {
-      const records = await pb.collection('khata_accounts').getFullList({
-        filter: `customer_id = "${customerId}"`,
-        expand: 'khata_transactions_via_khata_account',
-      });
-
-      const record = records[0] || null;
-      cacheManager.set(cacheKey, record, 5);
+      const accounts = await api<any[]>(`/api/khata-accounts`);
+      const record = accounts.find((a: any) => a.customer_id === customerId) || null;
+      if (record) cacheManager.set(cacheKey, record, 5);
       return record;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch khata account:', error);
       return null;
     }

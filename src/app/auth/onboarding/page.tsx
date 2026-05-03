@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import pb from "@/lib/pb";
-import { ShoppingCart, Store, Phone, MapPin, Printer, Package, Loader2 } from "lucide-react";
+import { ShoppingCart, Store, Phone, MapPin, Printer, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,17 +41,19 @@ export default function OnboardingPage() {
     checked.current = true;
 
     const boot = async () => {
-      for (let i = 0; i < 10; i++) {
+      // Check for SQLite session
+      const session = localStorage.getItem("pos_session");
+      if (session) {
         try {
-          await pb.health.check();
-          break;
-        } catch {
-          if (i === 9) return;
-          await new Promise((r) => setTimeout(r, 500));
+          const res = await fetch("/api/profile", {
+            headers: { "Authorization": `Bearer ${session}` }
+          });
+          if (res.ok) {
+            router.replace("/app/dashboard");
+          }
+        } catch (e) {
+          localStorage.removeItem("pos_session");
         }
-      }
-      if (pb.authStore.isValid) {
-        router.replace("/app/dashboard");
       }
     };
     boot();
@@ -81,6 +82,9 @@ export default function OnboardingPage() {
         shopAddress: shop.shop_address,
         password: password,
       });
+      
+      // Note: createProfile in Rust handles SQLite admin provisioning via create_profile
+      // redirected to login to establish frontend session
       router.push(`/auth/login?profileId=${encodeURIComponent(profile.id)}`);
     } catch (err: any) {
       setError(err.message || "Failed to create shop");

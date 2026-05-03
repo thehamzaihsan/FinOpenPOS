@@ -1,133 +1,125 @@
-// @ts-nocheck
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import pb from "@/lib/pb";
 import { dataService } from "@/lib/data-service";
-import { Plus, Edit2, Trash2, RefreshCw } from "lucide-react";
+import { Plus, Edit2, Search, Trash2, Zap, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function DealsPage() {
- const [deals, setDeals] = useState<any[]>([]);
- const [loading, setLoading] = useState(true);
+  const [deals, setDeals] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchParams] = useState("");
 
- useEffect(() => {
-  loadDeals();
- }, []);
+  useEffect(() => {
+    const fetchDeals = async () => {
+      setLoading(true);
+      try {
+        const data = await dataService.getDeals();
+        setDeals(data || []);
+      } catch (error) {
+        console.error("Error fetching deals:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDeals();
+  }, []);
 
- const loadDeals = async (forceRefresh = false) => {
-  try {
-   const data = await dataService.getDeals(forceRefresh);
-   setDeals(data || []);
-   setLoading(false);
-  } catch (error) {
-   console.error("Failed to load deals:", error);
-   setLoading(false);
-  }
- };
-
-  const handleDelete = async (dealId: string) => {
-   if (!confirm("Delete this deal?")) return;
-
-   try {
-    await pb.collection('deals').update(dealId, { is_active: false });
-
-    dataService.invalidateDealsCache();
-    loadDeals(true);
-   } catch (error: any) {
-    console.error("Failed to delete deal:", error);
-    alert(`Failed to delete deal: ${error.message || "Unknown error"}`);
-   }
-  };
-
- if (loading) {
-  return (
-   <div className="p-6 flex items-center justify-center min-h-screen">
-    <div className="text-gray-600">Loading deals...</div>
-   </div>
+  const filteredDeals = deals.filter((deal) =>
+    deal.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
- }
 
- return (
-  <div className="p-6 space-y-6">
-   <div className="flex items-center justify-between">
-    <h1 className="text-3xl font-bold text-gray-900">Deals</h1>
-    <div className="flex gap-2">
-     <button
-      onClick={() => loadDeals(true)}
-      title="Refresh data"
-      className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium transition-colors"
-     >
-      <RefreshCw className="w-4 h-4" />
-      Refresh
-     </button>
-     <Link
-      href="/app/deals/new"
-      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 font-medium"
-     >
-      <Plus className="w-4 h-4" />
-      Create Deal
-     </Link>
-    </div>
-   </div>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
-   <div className="bg-white shadow overflow-hidden">
-    <div className="overflow-x-auto">
-     <table className="w-full">
-      <thead className="bg-gray-50 border-b border-gray-200">
-       <tr>
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-         Name
-        </th>
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-         Description
-        </th>
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-         Products
-        </th>
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-         Actions
-        </th>
-       </tr>
-      </thead>
-      <tbody className="divide-y divide-gray-200">
-       {deals.length === 0 ? (
-        <tr>
-         <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-          No deals yet. Create one to get started!
-         </td>
-        </tr>
-       ) : (
-        deals.map((deal) => (
-         <tr key={deal.id} className="hover:bg-gray-50">
-          <td className="px-6 py-4 font-medium text-gray-900">
-           {deal.name}
-          </td>
-          <td className="px-6 py-4 text-gray-700">{deal.description}</td>
-          <td className="px-6 py-4 text-gray-700">-</td>
-          <td className="px-6 py-4">
-           <div className="flex gap-2">
-            <Link
-             href={`/app/deals/${deal.id}/edit`}
-             className="text-blue-600 hover:text-blue-700"
-            >
-             <Edit2 className="w-4 h-4" />
-            </Link>
-            <button
-             onClick={() => handleDelete(deal.id)}
-             className="text-red-600 hover:text-red-700"
-            >
-             <Trash2 className="w-4 h-4" />
-            </button>
-           </div>
-          </td>
-         </tr>
-        ))
-       )}
-      </tbody>
-     </table>
+  return (
+    <div className="p-8 font-aeonik">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Deals & Offers</h1>
+          <p className="text-gray-600">Manage promotional bundles and discounts</p>
+        </div>
+        <Link href="/app/deals/new">
+          <Button className="bg-blue-600 hover:bg-blue-700">
+            <Plus className="w-4 h-4 mr-2" /> New Deal
+          </Button>
+        </Link>
+      </div>
+
+      <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+        <div className="p-4 border-b bg-slate-50">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search deals..."
+              className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={searchTerm}
+              onChange={(e) => setSearchParams(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 text-gray-600 text-sm uppercase tracking-wider">
+              <tr>
+                <th className="px-6 py-4 font-semibold">Deal Name</th>
+                <th className="px-6 py-4 font-semibold">Description</th>
+                <th className="px-6 py-4 font-semibold">Discount</th>
+                <th className="px-6 py-4 font-semibold">Status</th>
+                <th className="px-6 py-4 font-semibold text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filteredDeals.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                    <div className="flex flex-col items-center gap-2">
+                      <Zap className="w-8 h-8 text-slate-300" />
+                      <p>No promotional deals found</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredDeals.map((deal) => (
+                  <tr key={deal.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 font-bold text-gray-900">{deal.name}</td>
+                    <td className="px-6 py-4 text-gray-600 text-sm">{deal.description || "-"}</td>
+                    <td className="px-6 py-4">
+                      <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">
+                        {deal.type === 'percentage' ? `${deal.value}% OFF` : `PKR ${deal.value} OFF`}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`flex items-center gap-1.5 text-xs font-bold ${deal.is_active ? 'text-green-600' : 'text-gray-400'}`}>
+                        <div className={`w-2 h-2 rounded-full ${deal.is_active ? 'bg-green-600' : 'bg-gray-400'}`} />
+                        {deal.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="icon" className="text-blue-600">
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-red-600">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
-   </div>
-  </div>
- );
+  );
 }

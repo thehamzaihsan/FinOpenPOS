@@ -1,21 +1,21 @@
-import pb from './pb';
-
 export async function getSession() {
-  return pb.authStore.model;
+  const res = await fetch("/api/profile", { cache: "no-store" }).catch(() => null);
+  if (!res || !res.ok) return null;
+  const json = await res.json();
+  return json?.data || null;
 }
 
 export async function getUser() {
-  return pb.authStore.model;
+  return getSession();
 }
 
 export async function isAuthenticated() {
-  return pb.authStore.isValid;
+  const session = await getSession();
+  return !!session;
 }
 
 export async function isAdmin() {
-  const user = pb.authStore.model;
+  const user: any = await getSession();
   if (!user) return false;
-  
-  // In PocketBase, we can check for is_admin or role fields
   return user.role === 'admin' || user.is_admin === true;
 }

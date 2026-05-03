@@ -27,11 +27,11 @@ interface OrderItem {
   id: string;
   order_id: string;
   product_id: string;
+  product_name?: string;
   quantity: number;
   unit_price: number;
-  discount_pct: number;
   discount_amount: number;
-  line_total: number;
+  total_price: number;
 }
 
 export default function OrderDetailPage() {
@@ -79,8 +79,8 @@ const response = await fetch(`/api/orders/${orderId}`, {
   const calculateRefundAmount = () => {
    return items.reduce((sum, item) => {
     const returnQty = returnedItems[item.id] || 0;
-    const unitPriceAfterDiscount = item.line_total / item.quantity;
-    return sum + (returnQty * unitPriceAfterDiscount);
+    const unitPrice = item.total_price / item.quantity;
+    return sum + (returnQty * unitPrice);
    }, 0);
   };
 
@@ -134,7 +134,7 @@ const response = await fetch(`/api/orders/${orderId}`, {
 
   const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
   const totalDiscount = items.reduce(
-   (sum, item) => sum + item.discount_amount,
+   (sum, item) => sum + (item.discount_amount || 0),
    0
   );
 
@@ -252,11 +252,11 @@ const response = await fetch(`/api/orders/${orderId}`, {
              <td className="py-3 px-4 text-gray-700">
               PKR {item.unit_price.toLocaleString()}
              </td>
-             <td className="py-3 px-4 text-gray-700">
-              {item.discount_pct > 0 ? `${item.discount_pct}%` : '-'}
-             </td>
-             <td className="py-3 px-4 text-right text-gray-900 font-medium">
-              PKR {item.line_total.toLocaleString()}
+              <td className="py-3 px-4 text-gray-700">
+               PKR {item.discount_amount > 0 ? `${item.discount_amount.toLocaleString()}` : '-'}
+              </td>
+              <td className="py-3 px-4 text-right text-gray-900 font-medium">
+               PKR {item.total_price.toLocaleString()}
              </td>
             </tr>
            ))}
@@ -358,7 +358,7 @@ const response = await fetch(`/api/orders/${orderId}`, {
 <div>
             <p className="font-medium text-gray-900">{item.product_name || `Product ${item.product_id?.slice(0, 8) || 'N/A'}`}</p>
             <p className="text-sm text-gray-500">
-             Price: PKR {(item.line_total / item.quantity).toLocaleString()} | In Order: {item.quantity}
+              Price: PKR {(item.total_price / item.quantity).toLocaleString()} | In Order: {item.quantity}
             </p>
            </div>
          <div className="flex items-center gap-2">

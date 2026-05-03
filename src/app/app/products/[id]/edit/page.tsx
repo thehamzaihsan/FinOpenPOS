@@ -1,317 +1,218 @@
-// @ts-nocheck
 "use client";
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import pb from "@/lib/pb";
 import { dataService } from "@/lib/data-service";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Package, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function EditProductPage() {
- const params = useParams();
- const router = useRouter();
- const productId = params.id as string;
+  const params = useParams();
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    item_code: "",
+    sku: "",
+    purchase_price: 0,
+    sale_price: 0,
+    quantity: 0,
+    min_stock: 5,
+    min_discount: 0,
+    max_discount: 0,
+    unit: "piece",
+    category: "",
+  });
 
- const [loading, setLoading] = useState(true);
- const [saving, setSaving] = useState(false);
- const [formData, setFormData] = useState({
-  name: "",
-  description: "",
-  purchasePrice: 0,
-  salePrice: 0,
-  unit: "piece",
-  itemCode: "",
-  quantity: 0,
-  minDiscount: 0,
-  maxDiscount: 0,
- });
+  useEffect(() => {
+    const loadProduct = async () => {
+      try {
+        const product = await dataService.getProduct(params.id as string);
+        if (product) {
+          setFormData({
+            name: product.name || "",
+            description: product.description || "",
+            item_code: product.item_code || "",
+            sku: product.sku || "",
+            purchase_price: product.purchase_price || 0,
+            sale_price: product.sale_price || product.price || 0,
+            quantity: product.quantity || product.stock || 0,
+            min_stock: product.min_stock || 5,
+            min_discount: product.min_discount || 0,
+            max_discount: product.max_discount || 0,
+            unit: product.unit || "piece",
+            category: product.category || "",
+          });
+        }
+      } catch (error) {
+        console.error("Failed to load product:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadProduct();
+  }, [params.id]);
 
- useEffect(() => {
-  loadProduct();
- }, [productId]);
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const session = localStorage.getItem("pos_session");
+      const res = await fetch(`/api/products/${params.id}`, {
+        method: "PUT",
+        headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session}`
+        },
+        body: JSON.stringify(formData)
+      });
+      
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || "Failed to update product");
+      
+      dataService.invalidateProductsCache();
+      router.push("/app/products");
+    } catch (error: any) {
+      alert(error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
- const loadProduct = async () => {
-  try {
-   const data = await dataService.getProduct(productId);
-
-   if (!data) throw new Error("Product not found");
-
-   setFormData({
-    name: data.name,
-    description: data.description || "",
-    purchasePrice: data.purchase_price,
-    salePrice: data.sale_price,
-    unit: data.unit,
-    itemCode: data.item_code,
-    quantity: data.quantity,
-    minDiscount: data.min_discount,
-    maxDiscount: data.max_discount,
-   });
-
-   setLoading(false);
-  } catch (error) {
-   console.error("Failed to load product:", error);
-   setLoading(false);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
   }
- };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-   const { name, value } = e.target;
-   setFormData((prev) => ({
-    ...prev,
-    [name]: name.includes("Price") || name.includes("Discount") || name === "quantity" ? parseFloat(value) || 0 : value,
-   }));
-  };
-
-  const calculateMaxAllowedDiscount = (salePrice: number, purchasePrice: number): number => {
-   if (salePrice <= 0 || salePrice < purchasePrice) return 0;
-   return ((salePrice - purchasePrice) / salePrice) * 100;
-  };
-
-  const maxAllowedDiscount = calculateMaxAllowedDiscount(formData.salePrice, formData.purchasePrice);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-   e.preventDefault();
-   setSaving(true);
-
-   try {
-    if (formData.salePrice < formData.purchasePrice) {
-     alert("Sale price must be greater than or equal to purchase price");
-     setSaving(false);
-     return;
-    }
-
-    const maxAllowed = calculateMaxAllowedDiscount(formData.salePrice, formData.purchasePrice);
-    if (formData.maxDiscount > maxAllowed) {
-     alert(`Max discount cannot exceed ${maxAllowed.toFixed(2)}% without causing a loss`);
-     setSaving(false);
-     return;
-    }
-
-    await pb.collection('products').update(productId, {
-      name: formData.name,
-      description: formData.description,
-      purchase_price: formData.purchasePrice,
-      sale_price: formData.salePrice,
-      unit: formData.unit,
-      item_code: formData.itemCode,
-      quantity: formData.quantity,
-      min_discount: formData.minDiscount,
-      max_discount: formData.maxDiscount,
-     });
-
-    alert("Product updated successfully!");
-    dataService.invalidateProductsCache();
-    router.push("/app/products");
-   } catch (error: any) {
-    console.error("Failed to update product:", error);
-    alert(`Failed to update product: ${error.message || "Unknown error"}`);
-   } finally {
-    setSaving(false);
-   }
-  };
-
- if (loading) {
   return (
-   <div className="p-6 flex items-center justify-center min-h-screen">
-    <div className="text-gray-600">Loading product...</div>
-   </div>
+    <div className="p-8 max-w-4xl mx-auto font-aeonik">
+      <div className="flex items-center gap-4 mb-8">
+        <Link href="/app/products">
+          <Button variant="ghost" size="icon">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+        </Link>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Edit Product</h1>
+          <p className="text-gray-600">Update inventory details for {formData.name}</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSave} className="space-y-6">
+        <Card className="border-none shadow-md">
+          <CardHeader className="bg-slate-50 border-b">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Package className="w-5 h-5 text-blue-600" /> Basic Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <div className="space-y-2">
+              <Label>Product Name</Label>
+              <Input 
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                required
+              />
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Item Code / Barcode</Label>
+                <Input 
+                  value={formData.item_code}
+                  onChange={(e) => setFormData({...formData, item_code: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Input 
+                  value={formData.category}
+                  onChange={(e) => setFormData({...formData, category: e.target.value})}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Input 
+                value={formData.description}
+                onChange={(e) => setFormData({...formData, description: e.target.value})}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-md">
+          <CardHeader className="bg-slate-50 border-b">
+            <CardTitle className="text-lg">Pricing & Stock</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 grid md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label>Purchase Price (PKR)</Label>
+              <Input 
+                type="number"
+                value={formData.purchase_price}
+                onChange={(e) => setFormData({...formData, purchase_price: Number(e.target.value)})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Sale Price (PKR)</Label>
+              <Input 
+                type="number"
+                value={formData.sale_price}
+                onChange={(e) => setFormData({...formData, sale_price: Number(e.target.value)})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Current Quantity</Label>
+              <Input 
+                type="number"
+                value={formData.quantity}
+                onChange={(e) => setFormData({...formData, quantity: Number(e.target.value)})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Min. Stock Alert</Label>
+              <Input 
+                type="number"
+                value={formData.min_stock}
+                onChange={(e) => setFormData({...formData, min_stock: Number(e.target.value)})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Min. Discount (%)</Label>
+              <Input 
+                type="number"
+                value={formData.min_discount}
+                onChange={(e) => setFormData({...formData, min_discount: Number(e.target.value)})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Max. Discount (%)</Label>
+              <Input 
+                type="number"
+                value={formData.max_discount}
+                onChange={(e) => setFormData({...formData, max_discount: Number(e.target.value)})}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-end gap-4">
+          <Button type="button" variant="ghost" onClick={() => router.back()}>Cancel</Button>
+          <Button type="submit" className="bg-blue-600 hover:bg-blue-700 min-w-[150px]" disabled={saving}>
+            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            Save Changes
+          </Button>
+        </div>
+      </form>
+    </div>
   );
- }
-
- return (
-  <div className="p-6 space-y-6">
-   <div className="flex items-center gap-4">
-    <Link href="/app/products" className="p-2 hover:bg-gray-100 ">
-     <ArrowLeft className="w-6 h-6 text-gray-600" />
-    </Link>
-    <div>
-     <h1 className="text-3xl font-bold text-gray-900">Edit Product</h1>
-     <p className="text-gray-600">Update product information</p>
-    </div>
-   </div>
-
-   <form onSubmit={handleSubmit} className="space-y-6">
-    <div className="bg-white shadow p-6 space-y-4">
-     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-       <label className="block text-sm font-medium text-gray-700 mb-1">
-        Product Name
-       </label>
-       <input
-        type="text"
-        name="name"
-        value={formData.name}
-        onChange={handleInputChange}
-        className="w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500"
-       />
-      </div>
-
-      <div>
-       <label className="block text-sm font-medium text-gray-700 mb-1">
-        Item Code
-       </label>
-       <input
-        type="text"
-        name="itemCode"
-        value={formData.itemCode}
-        onChange={handleInputChange}
-        className="w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500"
-       />
-      </div>
-     </div>
-
-     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-       Description
-      </label>
-      <textarea
-       name="description"
-       value={formData.description}
-       onChange={handleInputChange}
-       rows={3}
-       className="w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500"
-      />
-     </div>
-
-     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div>
-       <label className="block text-sm font-medium text-gray-700 mb-1">
-        Unit
-       </label>
-       <select
-        name="unit"
-        value={formData.unit}
-        onChange={handleInputChange}
-        className="w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500"
-       >
-        <option value="piece">Piece</option>
-        <option value="dozen">Dozen</option>
-        <option value="kg">Kilogram</option>
-        <option value="packet">Packet</option>
-        <option value="litre">Litre</option>
-        <option value="meter">Meter</option>
-       </select>
-      </div>
-
-      <div>
-       <label className="block text-sm font-medium text-gray-700 mb-1">
-        Purchase Price
-       </label>
-       <input
-        type="number"
-        name="purchasePrice"
-        value={formData.purchasePrice}
-        onChange={handleInputChange}
-        step="0.01"
-        className="w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500"
-       />
-      </div>
-
-       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-         Sale Price
-        </label>
-        <input
-         type="number"
-         name="salePrice"
-         value={formData.salePrice}
-         onChange={handleInputChange}
-         step="0.01"
-         className={`w-full px-4 py-2 border focus:ring-2 focus:ring-blue-500 ${
-          formData.salePrice < formData.purchasePrice
-           ? 'border-red-500 bg-red-50'
-           : 'border-gray-300'
-         }`}
-        />
-        {formData.salePrice < formData.purchasePrice && (
-         <p className="text-red-600 text-sm mt-1">
-          Sale price cannot be less than purchase price
-         </p>
-        )}
-        {formData.salePrice >= formData.purchasePrice && formData.purchasePrice > 0 && (
-         <p className="text-green-600 text-sm mt-1">
-          Profit margin: {(((formData.salePrice - formData.purchasePrice) / formData.purchasePrice) * 100).toFixed(1)}%
-         </p>
-        )}
-       </div>
-     </div>
-
-     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div>
-       <label className="block text-sm font-medium text-gray-700 mb-1">
-        Quantity
-       </label>
-       <input
-        type="number"
-        name="quantity"
-        value={formData.quantity}
-        onChange={handleInputChange}
-        className="w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500"
-       />
-      </div>
-
-       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-         Min Discount %
-        </label>
-        <input
-         type="number"
-         name="minDiscount"
-         value={formData.minDiscount}
-         onChange={handleInputChange}
-         step="0.01"
-         max={maxAllowedDiscount}
-         className="w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500"
-        />
-       </div>
-
-       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-         Max Discount %
-         <span className="text-gray-500 font-normal text-xs ml-2">
-          (Max allowed: {maxAllowedDiscount.toFixed(2)}%)
-         </span>
-        </label>
-        <input
-         type="number"
-         name="maxDiscount"
-         value={formData.maxDiscount}
-         onChange={handleInputChange}
-         step="0.01"
-         max={maxAllowedDiscount}
-         className={`w-full px-4 py-2 border focus:ring-2 focus:ring-blue-500 ${
-          formData.maxDiscount > maxAllowedDiscount
-           ? 'border-red-500 bg-red-50'
-           : 'border-gray-300'
-         }`}
-        />
-        {formData.maxDiscount > maxAllowedDiscount && (
-         <p className="text-red-600 text-sm mt-1">
-          Max discount cannot exceed {maxAllowedDiscount.toFixed(2)}% or you'll be selling at a loss
-         </p>
-        )}
-       </div>
-     </div>
-    </div>
-
-    <div className="flex gap-4">
-     <Link
-      href="/app/products"
-      className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium text-center"
-     >
-      Cancel
-     </Link>
-     <button
-      type="submit"
-      disabled={saving}
-      className="flex-1 px-6 py-3 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 font-medium"
-     >
-      {saving ? "Saving..." : "Save Changes"}
-     </button>
-    </div>
-   </form>
-  </div>
- );
 }

@@ -52,3 +52,7 @@ export async function createProfile(payload: CreateProfilePayload): Promise<AppP
 export async function switchProfile(profileId: string): Promise<AppProfile> {
   return invokeTauri<AppProfile>("switch_profile", { profileId });
 }
+
+export async function ensureProfileSuperuser(profileId: string, password: string): Promise<void> {
+  await invokeTauri<void>("ensure_profile_superuser", { profileId, password });
+}

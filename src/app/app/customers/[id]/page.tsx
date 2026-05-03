@@ -1,10 +1,10 @@
-// @ts-nocheck
 "use client";
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { dataService } from "@/lib/data-service";
-import { ArrowLeft, Eye } from "lucide-react";
+import { ArrowLeft, Loader2, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function CustomerDetailPage() {
  const params = useParams();
@@ -34,22 +34,26 @@ export default function CustomerDetailPage() {
    setOrders(ordersData || []);
    setKhata(khataData || null);
 
-   // PocketBase expanded data for transactions if using getKhataAccount
-   if (khataData?.expand?.khata_transactions_via_khata_account) {
-    setKhataTransactions(khataData.expand.khata_transactions_via_khata_account);
-   }
+    // Load khata transactions
+    if (khata) {
+     const txRes = await fetch(`/api/khata-accounts/${khata.id}/transactions`);
+     const txJson = await txRes.json();
+     if (txJson.success) {
+      setKhataTransactions(txJson.data || []);
+     }
+    }
 
-   setLoading(false);
-  } catch (error) {
-   console.error("Failed to load customer data:", error);
-   setLoading(false);
-  }
- };
+    setLoading(false);
+   } catch (error) {
+    console.error("Failed to load customer data:", error);
+    setLoading(false);
+   }
+  };
 
  if (loading) {
   return (
    <div className="p-6 flex items-center justify-center min-h-screen">
-    <div className="text-gray-600">Loading customer...</div>
+    <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
    </div>
   );
  }
@@ -62,23 +66,35 @@ export default function CustomerDetailPage() {
   );
  }
 
- const totalSpent = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
- const avgOrderValue = orders.length > 0 ? totalSpent / orders.length : 0;
+  const totalSpent = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
+  const avgOrderValue = orders.length > 0 ? totalSpent / orders.length : 0;
+
+  const handleExportPDF = () => {
+   window.open(`/api/customers/${customerId}/export`, "_blank");
+  };
 
  return (
-  <div className="p-6 space-y-6">
+  <div className="p-8 space-y-8 font-aeonik">
    {/* Header */}
    <div className="flex items-center gap-4">
-    <button
+    <Button
+     variant="ghost"
+     size="icon"
      onClick={() => router.back()}
-     className="p-2 hover:bg-gray-100 transition-colors"
     >
-     <ArrowLeft className="w-6 h-6 text-gray-600" />
-    </button>
+     <ArrowLeft className="w-6 h-6" />
+    </Button>
     <div>
      <h1 className="text-3xl font-bold text-gray-900">{customer.name}</h1>
-     <p className="text-gray-600">{customer.phone || "No phone"}</p>
+     <p className="text-gray-600">{customer.phone || "No phone contact"}</p>
     </div>
+    <button
+     onClick={handleExportPDF}
+     className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors ml-auto"
+    >
+     <Download className="w-4 h-4" />
+     Export PDF
+    </button>
    </div>
 
    {/* Tabs */}
@@ -87,10 +103,10 @@ export default function CustomerDetailPage() {
      <button
       key={tab}
       onClick={() => setActiveTab(tab as any)}
-      className={`py-3 px-1 font-medium capitalize transition-colors ${
+      className={`py-3 px-1 font-bold capitalize transition-colors ${
        activeTab === tab
         ? "border-b-2 border-blue-600 text-blue-600"
-        : "text-gray-600 hover:text-gray-900"
+        : "text-gray-500 hover:text-gray-900"
       }`}
      >
       {tab}
@@ -100,215 +116,174 @@ export default function CustomerDetailPage() {
 
    {/* Overview Tab */}
    {activeTab === "overview" && (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-     <div className="bg-white shadow p-6">
-      <p className="text-gray-600 text-sm">Total Orders</p>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+     <div className="bg-white border p-6 rounded-xl shadow-sm">
+      <p className="text-gray-500 text-sm font-medium">Total Orders</p>
       <p className="text-3xl font-bold text-gray-900 mt-2">{orders.length}</p>
      </div>
-     <div className="bg-white shadow p-6">
-      <p className="text-gray-600 text-sm">Total Spent</p>
-      <p className="text-3xl font-bold text-gray-900 mt-2">
+     <div className="bg-white border p-6 rounded-xl shadow-sm">
+      <p className="text-gray-500 text-sm font-medium">Total Revenue</p>
+      <p className="text-3xl font-bold text-blue-600 mt-2">
        PKR {totalSpent.toLocaleString()}
       </p>
      </div>
-     <div className="bg-white shadow p-6">
-      <p className="text-gray-600 text-sm">Avg Order Value</p>
+     <div className="bg-white border p-6 rounded-xl shadow-sm">
+      <p className="text-gray-500 text-sm font-medium">Avg Order Value</p>
       <p className="text-3xl font-bold text-gray-900 mt-2">
-       PKR {avgOrderValue.toLocaleString()}
+       PKR {Math.round(avgOrderValue).toLocaleString()}
       </p>
      </div>
     </div>
    )}
 
-   {/* Orders Tab */}
-   {activeTab === "orders" && (
-    <div className="bg-white shadow overflow-hidden">
-     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-       <thead className="bg-gray-50 border-b border-gray-200">
-        <tr>
-         <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-          Order ID
-         </th>
-         <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-          Date
-         </th>
-         <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-          Total
-         </th>
-         <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-          Status
-         </th>
-        </tr>
-       </thead>
-       <tbody className="divide-y divide-gray-200">
-        {orders.length === 0 ? (
+    {/* Orders Tab */}
+    {activeTab === "orders" && (
+     <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+      <div className="overflow-x-auto">
+       <table className="w-full text-left">
+        <thead className="bg-slate-50 border-b">
          <tr>
-          <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-           No orders yet
-          </td>
+          <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase">
+           Order ID
+          </th>
+          <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase">
+           Date
+          </th>
+          <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase">
+           Total
+          </th>
+          <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase">
+           Paid
+          </th>
+          <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase">
+           Balance
+          </th>
+          <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase">
+           Status
+          </th>
          </tr>
-        ) : (
-         orders.map((order) => (
-          <tr key={order.id} className="hover:bg-gray-50">
-           <td className="px-6 py-4 font-medium text-gray-900">
-            {order.id.slice(0, 8)}
-           </td>
-           <td className="px-6 py-4 text-gray-700">
-            {new Date(order.created_at).toLocaleDateString()}
-           </td>
-           <td className="px-6 py-4 text-gray-900">
-            PKR {(order.total_amount || 0).toLocaleString()}
-           </td>
-           <td className="px-6 py-4">
-            <span
-             className={`px-3 py-1 text-xs font-medium ${
-              order.status === "completed"
-               ? "bg-green-100 text-green-700"
-               : "bg-yellow-100 text-yellow-700"
-             }`}
-            >
-             {order.status}
-            </span>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+         {orders.length === 0 ? (
+          <tr>
+           <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+            No orders yet
            </td>
           </tr>
-         ))
-        )}
-       </tbody>
-      </table>
+         ) : (
+          orders.map((order) => (
+           <tr key={order.id} className="hover:bg-gray-50">
+            <td className="px-6 py-4 font-bold text-gray-900">
+             #{order.id.slice(0, 8)}
+            </td>
+            <td className="px-6 py-4 text-gray-600">
+             {new Date(order.created_at || order.created).toLocaleDateString()}
+            </td>
+            <td className="px-6 py-4 text-gray-900 font-bold">
+             PKR {(order.total_amount || 0).toLocaleString()}
+            </td>
+            <td className="px-6 py-4 text-green-600 font-medium">
+             PKR {(order.amount_paid || 0).toLocaleString()}
+            </td>
+            <td className="px-6 py-4 font-medium">
+             <span className={(order.balance_due || order.total_amount - (order.amount_paid || 0)) > 0 ? "text-red-600" : "text-green-600"}>
+              PKR {((order.balance_due || (order.total_amount - (order.amount_paid || 0)))).toLocaleString()}
+             </span>
+            </td>
+            <td className="px-6 py-4">
+             <span
+              className={`px-3 py-1 rounded-full text-xs font-bold ${
+               order.status === "completed" || order.status === "paid"
+                ? "bg-green-100 text-green-700"
+                : order.status === "partial"
+                ? "bg-yellow-100 text-yellow-700"
+                : order.status === "refunded"
+                ? "bg-red-100 text-red-700"
+                : "bg-gray-100 text-gray-700"
+              }`}
+             >
+              {order.status}
+             </span>
+            </td>
+           </tr>
+          ))
+         )}
+        </tbody>
+       </table>
+      </div>
      </div>
-    </div>
-   )}
+    )}
 
    {/* Khata Tab */}
    {activeTab === "khata" && (
     <div className="space-y-6">
      {khata ? (
       <>
-       {/* Balance Cards */}
-       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-red-50 border border-red-200 p-6">
-         <p className="text-sm text-red-700 font-medium">Current Balance</p>
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-red-50 border border-red-200 p-6 rounded-xl">
+         <p className="text-sm text-red-700 font-bold">Outstanding Balance</p>
          <p className="text-4xl font-bold text-red-900 mt-2">
-          PKR {khata.balance.toLocaleString()}
-         </p>
-         <p className="text-xs text-red-600 mt-2">
-          {khata.balance > 0 ? "Amount due" : "Amount available"}
-         </p>
-        </div>
-        <div className="bg-blue-50 border border-blue-200 p-6">
-         <p className="text-sm text-blue-700 font-medium">Opening Balance</p>
-         <p className="text-2xl font-bold text-blue-900 mt-2">
-          PKR {(khata.opening_balance || 0).toLocaleString()}
+          PKR {(khata.balance || khata.current_balance || 0).toLocaleString()}
          </p>
         </div>
        </div>
 
-       {/* Transaction History */}
-       <div className="bg-white shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-         <h3 className="font-semibold text-gray-900">Transaction History</h3>
-         <p className="text-sm text-gray-600 mt-1">
-          {khataTransactions.length} transactions
-         </p>
-        </div>
-        <div className="overflow-x-auto">
-         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
-           <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-             Date
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-             Description
-            </th>
-            <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase">
-             Amount
-            </th>
-            <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase">
-             Running Balance
-            </th>
-           </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-           {khataTransactions.length === 0 ? (
-            <tr>
-             <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-              No transactions yet
-             </td>
-            </tr>
-           ) : (
-            khataTransactions.map((transaction, idx) => {
-             // Calculate running balance
-             const previousBalance =
-              idx === 0
-               ? khata.opening_balance || 0
-               : khataTransactions[idx - 1].balance_after || 0;
-             const runningBalance =
-              previousBalance +
-              (transaction.transaction_type === "debit"
-               ? -Math.abs(transaction.amount || 0)
-               : Math.abs(transaction.amount || 0));
-
-             return (
-              <tr key={transaction.id} className="hover:bg-gray-50">
-               <td className="px-6 py-4 text-gray-700">
-                {new Date(transaction.transaction_date).toLocaleDateString(
-                 "en-PK",
-                 {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
-                 }
-                )}
+        <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+         <div className="px-6 py-4 border-b bg-slate-50">
+          <h3 className="font-bold text-gray-900">Transaction History</h3>
+         </div>
+         {khataTransactions.length > 0 ? (
+          <div className="overflow-x-auto">
+           <table className="w-full text-left">
+            <thead className="bg-gray-50 border-b">
+             <tr>
+              <th className="px-6 py-3 text-xs font-bold text-gray-600 uppercase">Date</th>
+              <th className="px-6 py-3 text-xs font-bold text-gray-600 uppercase">Type</th>
+              <th className="px-6 py-3 text-xs font-bold text-gray-600 uppercase text-right">Amount</th>
+              <th className="px-6 py-3 text-xs font-bold text-gray-600 uppercase">Order</th>
+              <th className="px-6 py-3 text-xs font-bold text-gray-600 uppercase">Notes</th>
+             </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+             {khataTransactions.map((tx: any) => (
+              <tr key={tx.id} className="hover:bg-gray-50">
+               <td className="px-6 py-3 text-gray-600">
+                {new Date(tx.created_at).toLocaleDateString()}
                </td>
-               <td className="px-6 py-4">
-                <div>
-                 <p className="text-gray-900 font-medium">
-                  {transaction.description || "—"}
-                 </p>
-                 {transaction.reference_id && (
-                  <p className="text-xs text-gray-500">
-                   Ref: {transaction.reference_id}
-                  </p>
-                 )}
-                </div>
-               </td>
-               <td className="px-6 py-4 text-right">
-                <span
-                 className={`font-medium ${
-                  transaction.transaction_type === "debit"
-                   ? "text-red-600"
-                   : "text-green-600"
-                 }`}
-                >
-                 {transaction.transaction_type === "debit" ? "-" : "+"}PKR{" "}
-                 {Math.abs(transaction.amount || 0).toLocaleString()}
+               <td className="px-6 py-3">
+                <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                  tx.type === "debit" ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
+                }`}>
+                 {tx.type === "debit" ? "Debit (Owed)" : "Credit (Paid)"}
                 </span>
                </td>
-               <td className="px-6 py-4 text-right">
-                <span
-                 className={`font-medium px-3 py-1 text-xs ${
-                  runningBalance > 0
-                   ? "bg-red-100 text-red-700"
-                   : "bg-green-100 text-green-700"
-                 }`}
-                >
-                 PKR {runningBalance.toLocaleString()}
-                </span>
+               <td className={`px-6 py-3 text-right font-bold ${
+                 tx.type === "debit" ? "text-red-600" : "text-green-600"
+               }`}>
+                PKR {(tx.amount || 0).toLocaleString()}
+               </td>
+               <td className="px-6 py-3 text-gray-600 text-sm">
+                {tx.order_id ? `#${tx.order_id.slice(0, 8)}` : "-"}
+               </td>
+               <td className="px-6 py-3 text-gray-500 text-sm">
+                {tx.notes || "-"}
                </td>
               </tr>
-             );
-            })
-           )}
-          </tbody>
-         </table>
+             ))}
+            </tbody>
+           </table>
+          </div>
+         ) : (
+          <div className="p-12 text-center text-gray-500">
+           No khata transactions recorded yet.
+          </div>
+         )}
         </div>
-       </div>
       </>
      ) : (
-      <div className="bg-gray-50 border border-gray-200 p-6 text-center">
-       <p className="text-gray-600">No Khata account yet</p>
+      <div className="bg-gray-50 border border-dashed border-gray-300 p-12 rounded-xl text-center">
+       <p className="text-gray-500 font-medium">No Khata account registered for this customer.</p>
+       <p className="text-gray-400 text-sm mt-2">Create an order with partial payment to automatically open a Khata account.</p>
       </div>
      )}
     </div>

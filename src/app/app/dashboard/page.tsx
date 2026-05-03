@@ -1,9 +1,7 @@
-// @ts-nocheck
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import pb from "@/lib/pb";
 import { getActiveProfile } from "@/lib/profile-client";
 import { dataService } from "@/lib/data-service";
 import {
@@ -31,69 +29,69 @@ export default function DashboardPage() {
  });
  const [loading, setLoading] = useState(true);
 
-useEffect(() => {
+ useEffect(() => {
     const checkAuth = async () => {
-  // Wait for PocketBase to be ready
-  for (let i = 0; i < 10; i++) {
-    try {
-      await pb.health.check();
-      break;
-    } catch {
-      if (i === 9) { router.replace("/"); return; }
-      await new Promise((r) => setTimeout(r, 500));
-    }
-  }
+      const session = localStorage.getItem("pos_session");
+      if (!session) {
+        router.replace("/auth/login");
+        return;
+      }
 
-  if (!pb.authStore.isValid) {
-    router.replace("/");
-    return;
-  }
-
-  try {
-    const active = await getActiveProfile();
-    if (!active) { router.replace("/"); return; }
-    await loadDashboardData();
-  } catch {
-    router.replace("/");
-  }
-};
+      try {
+        const active = await getActiveProfile();
+        if (!active) { 
+          router.replace("/auth/login"); 
+          return; 
+        }
+        await loadDashboardData();
+      } catch {
+        router.replace("/auth/login");
+      }
+    };
   
   checkAuth();
  }, []);
 
- const loadDashboardData = async () => {
-  try {
-   const dashboardStats = await dataService.getDashboardStats();
-   const orders = await dataService.getOrders();
-   const products = await dataService.getProducts();
+  const loadDashboardData = async () => {
+   try {
+    const dashboardStats = await dataService.getDashboardStats();
+    const orders = await dataService.getOrders();
+    const products = await dataService.getProducts();
 
-   if (dashboardStats) {
-     setStats({
-      todaysSales: dashboardStats.todaysSales,
-      ordersToday: dashboardStats.ordersToday,
-      outstandingKhata: dashboardStats.outstandingKhata,
-      topProduct: null,
-     });
+    const salesRes = await fetch("/api/reports/sales?from=" + new Date(new Date().getTime() - 29 * 86400000).toISOString() + "&to=" + new Date().toISOString());
+    const salesJson = await salesRes.json();
+    const topProductsData = salesJson.success ? (salesJson.data.topProducts || []) : [];
 
-     setKhataStats({
-      total: dashboardStats.outstandingKhata,
-      customersWithKhata: dashboardStats.customersWithKhata,
-     });
+    if (dashboardStats) {
+      setStats({
+       todaysSales: dashboardStats.todaysSales,
+       ordersToday: dashboardStats.ordersToday,
+       outstandingKhata: dashboardStats.outstandingKhata,
+       topProduct: topProductsData[0] || null,
+      });
 
-     setLast7Days(dashboardStats.last7Days);
+      setKhataStats({
+       total: dashboardStats.outstandingKhata,
+       customersWithKhata: dashboardStats.customersWithKhata,
+      });
+
+      setLast7Days(dashboardStats.last7Days);
+    }
+
+    setLastOrders(orders.slice(0, 5) || []);
+    
+    setTopProducts(topProductsData.slice(0, 5).map(p => ({
+      name: p.name,
+      qty: p.qty_sold,
+      revenue: p.revenue || 0,
+    })));
+
+    setLoading(false);
+   } catch (error) {
+    console.error("Failed to load dashboard data:", error);
+    setLoading(false);
    }
-
-   setLastOrders(orders.slice(0, 5) || []);
-   
-   // Mock top products for now based on available products
-   setTopProducts(products.slice(0, 5).map(p => ({ name: p.name, qty: Math.floor(Math.random() * 50) + 10 })));
-
-   setLoading(false);
-  } catch (error) {
-   console.error("Failed to load dashboard data:", error);
-   setLoading(false);
-  }
- };
+  };
 
  if (loading) {
   return (
@@ -164,9 +162,9 @@ useEffect(() => {
 
     {/* Top Products Bar Chart */}
     <div className="bg-white shadow p-6">
-     <h2 className="text-lg font-semibold text-gray-900 mb-4">
-      Top Products This Month
-     </h2>
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">
+       Top Products (Last 30 Days)
+      </h2>
      <ResponsiveContainer width="100%" height={300}>
       <BarChart data={topProducts}>
        <CartesianGrid strokeDasharray="3 3" />

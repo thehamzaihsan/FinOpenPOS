@@ -4,12 +4,12 @@
 import { useState, useEffect } from "react";
 import { dataService } from "@/lib/data-service";
 import Link from "next/link";
-import { Eye, Search, RefreshCw } from "lucide-react";
+import { Eye, Search, RefreshCw, Download } from "lucide-react";
 
 interface Order {
  id: string;
  customer_id?: string;
- created: string;
+ created_at: string;
  total_amount: number;
  amount_paid: number;
  balance_due: number;
@@ -50,7 +50,15 @@ export default function OrdersPage() {
   }
  };
 
- const filterOrders = () => {
+  const handleExportCSV = () => {
+   window.open("/api/export?type=orders&format=csv", "_blank");
+  };
+
+  const handleExportItems = () => {
+   window.open("/api/export?type=order_items&format=csv", "_blank");
+  };
+
+  const filterOrders = () => {
   let filtered = orders;
 
   if (statusFilter !== "all") {
@@ -104,14 +112,30 @@ export default function OrdersPage() {
  return (
   <div className="p-6 space-y-6 font-aeonik">
    <div className="flex items-center justify-between">
-    <h1 className="text-3xl font-bold text-gray-900">Orders</h1>
-    <button
-     onClick={() => loadOrders(true)}
-     className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-    >
-     <RefreshCw className="w-4 h-4" />
-     Refresh
-    </button>
+     <h1 className="text-3xl font-bold text-gray-900">Orders</h1>
+     <div className="flex gap-2">
+      <button
+       onClick={handleExportCSV}
+       className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+      >
+       <Download className="w-4 h-4" />
+       Orders
+      </button>
+      <button
+       onClick={handleExportItems}
+       className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+      >
+       <Download className="w-4 h-4" />
+       Items
+      </button>
+      <button
+       onClick={() => loadOrders(true)}
+       className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+      >
+       <RefreshCw className="w-4 h-4" />
+       Refresh
+      </button>
+     </div>
    </div>
 
    {/* Filters */}
@@ -199,7 +223,7 @@ export default function OrdersPage() {
            {order.expand?.customer?.name || "Walk-in"}
           </td>
           <td className="px-6 py-4 text-gray-600">
-           {new Date(order.created).toLocaleString()}
+            {new Date(order.created_at).toLocaleString()}
           </td>
           <td className="px-6 py-4 text-gray-900 font-medium">
            PKR {order.total_amount.toLocaleString()}

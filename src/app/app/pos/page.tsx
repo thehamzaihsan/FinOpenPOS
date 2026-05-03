@@ -66,16 +66,9 @@ export default function POSPage() {
 
 const fetchSettings = async () => {
     try {
-     const res = await fetch("/api/settings/shop", {
-      headers: {
-        "x-pb-email": localStorage.getItem("pb_admin_email") || "",
-        "x-pb-password": localStorage.getItem("pb_admin_password") || "",
-      }
-     });
-     if (!res.ok) return;
-     const json = await res.json();
-     if (json.success && json.data) {
-      setShopSettings(json.data);
+     const data = await dataService.getShopSettings();
+     if (data) {
+      setShopSettings(data);
      }
     } catch (err) {
      console.error("Failed to load settings:", err);
@@ -165,7 +158,7 @@ const existingItem = cart.find((item) => item.productId === product.id);
  
  // Walk-in: must pay in full. Retail: can have credit
  const canComplete = saleType === "walk-in" 
-  ? balance === 0 
+  ? amountPaid === totalDue 
   : selectedCustomer !== "";
 
   const handleCompleteOrder = async () => {
@@ -211,24 +204,9 @@ const existingItem = cart.find((item) => item.productId === product.id);
       orderData.customer_id = selectedCustomer;
      }
 
-     // Create order via API (which now handles items as well)
-     const orderResponse = await fetch("/api/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json",
-        "x-pb-email": localStorage.getItem("pb_admin_email") || "",
-        "x-pb-password": localStorage.getItem("pb_admin_password") || "",
-      },
-      body: JSON.stringify(orderData),
-     });
-
-     if (!orderResponse.ok) {
-      const error = await orderResponse.json();
-      setOrderError(`Order creation failed: ${error.error || "Unknown error"}`);
-      return;
-     }
+     // Create order directly via dataService
+     const order = await dataService.createOrder(orderData);
      
-     const { data: order } = await orderResponse.json();
-
      // Generate Thermal Receipt HTML
      const printReceipt = () => {
       try {
@@ -364,8 +342,11 @@ const existingItem = cart.find((item) => item.productId === product.id);
      setAmountPaid(0);
      setSelectedCustomer("");
      setOrderError("");
-     // Invalidate orders cache
+     // Invalidate caches
      dataService.invalidateOrdersCache();
+     dataService.invalidateProductsCache();
+     // Refresh data to update stock levels visually
+     await loadData(true);
     } catch (error) {
      console.error("Failed to create order:", error);
      setOrderError(
@@ -386,32 +367,16 @@ const existingItem = cart.find((item) => item.productId === product.id);
    }
 
    try {
-    const response = await fetch("/api/customers", {
-     method: "POST",
-     headers: { "Content-Type": "application/json",
-        "x-pb-email": localStorage.getItem("pb_admin_email") || "",
-        "x-pb-password": localStorage.getItem("pb_admin_password") || "",
-     },
-     body: JSON.stringify({
+    const customer = await dataService.createCustomer({
       name: newCustomerName,
       phone: newCustomerPhone,
-     }),
     });
-
-    if (!response.ok) {
-     const error = await response.json();
-     throw new Error(error.error || "Failed to create customer");
-    }
-
-    const { data: customer } = await response.json();
 
     setCustomers([...customers, customer]);
     setSelectedCustomer(customer.id);
     setNewCustomerName("");
     setNewCustomerPhone("");
     setShowNewCustomer(false);
-    // Invalidate cache so next load gets fresh data
-    dataService.invalidateCustomersCache();
    } catch (error) {
     console.error("Failed to add customer:", error);
     alert(`Failed to add customer: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -949,7 +914,7 @@ const filteredProducts = products.filter((p) => {
       {/* Amount Paid Section */}
       <div>
        <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">
-        Amount Paid
+        Amount Paid (Cannot exceed total)
        </label>
        <div className="relative">
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 font-semibold">
@@ -958,9 +923,14 @@ const filteredProducts = products.filter((p) => {
         <input
          type="number"
          value={amountPaid}
-         onChange={(e) => setAmountPaid(parseFloat(e.target.value) || 0)}
+         onChange={(e) => {
+           let val = parseFloat(e.target.value) || 0;
+           if (val > totalDue) val = totalDue;
+           setAmountPaid(val);
+         }}
          className="w-full pl-12 pr-4 py-2.5 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent font-semibold text-lg"
          min="0"
+         max={totalDue}
          placeholder="0"
         />
        </div>

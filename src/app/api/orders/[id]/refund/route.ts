@@ -1,73 +1,51 @@
 import { NextResponse } from "next/server";
-import PocketBase from "pocketbase";
-import { ensureCollections } from "@/lib/ensure-collections";
+import { randomUUID } from "node:crypto";
+import { getDb, transaction } from "@/lib/sqlite";
 
 export const dynamic = "force-dynamic";
 
-const PB_URL = process.env.NEXT_PUBLIC_POCKETBASE_URL || "http://127.0.0.1:8090";
-const ADMIN_EMAIL = "admin@possys.com";
-const ADMIN_PASSWORD = "PosSys@123456";
-
-async function getAdminClient() {
-  const pb = new PocketBase(PB_URL);
-  try {
-    await pb.admins.authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
-  } catch {
-    const res = await pb.send("/api/admins/auth-with-password", {
-      method: "POST",
-      body: { identity: ADMIN_EMAIL, password: ADMIN_PASSWORD },
-    });
-    pb.authStore.save(res.token, res.admin);
-  }
-  return pb;
-}
-
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await ensureCollections();
-    const pb = await getAdminClient();
+    const db = getDb();
     const { id } = await params;
-    const body = await request.json();
-    
-    const order = await pb.collection("orders").getOne(id, {
-      expand: "order_items_via_order",
-    });
 
-    for (const item of order.expand?.order_items_via_order || []) {
-      try {
-        const product = await pb.collection("products").getOne(item.product);
-        await pb.collection("products").update(item.product, {
-          stock: (product.stock || 0) + item.quantity,
-        });
-      } catch (e) {
-        console.error("Failed to restore product stock:", e);
-      }
+    const order = db.prepare("SELECT * FROM orders WHERE id = ?").get(id) as any;
+    if (!order) {
+      return NextResponse.json({ success: false, error: "Order not found" }, { status: 404 });
     }
 
-    if (order.is_khata && order.customer) {
-      try {
-        const accounts = await pb.collection("khata_accounts").getFullList({
-          filter: `customer = "${order.customer}"`,
-        });
-        
-        if (accounts[0]) {
-          await pb.collection("khata_accounts").update(accounts[0].id, {
-            balance: Math.max(0, (accounts[0].balance || 0) - order.total_amount),
-          });
+    if (order.status === "refunded") {
+      return NextResponse.json({ success: false, error: "Order already refunded" }, { status: 400 });
+    }
 
-          await pb.collection("khata_transactions").create({
-            account: accounts[0].id,
-            amount: order.total_amount,
-            type: "credit",
-            note: `Refund for order #${order.id}`,
-          });
+    const items = db.prepare("SELECT * FROM order_items WHERE order_id = ?").all(id) as any[];
+    const now = new Date().toISOString();
+
+    transaction(() => {
+      for (const item of items) {
+        const product = db.prepare("SELECT * FROM products WHERE id = ?").get(item.product_id) as any;
+        if (product) {
+          db.prepare("UPDATE products SET quantity = quantity + ?, stock = stock + ? WHERE id = ?").run(
+            item.quantity || 0,
+            item.quantity || 0,
+            item.product_id
+          );
         }
-      } catch (e) {
-        console.error("Failed to reverse khata:", e);
       }
-    }
 
-    await pb.collection("orders").update(id, { status: "refunded" });
+      if (order.is_khata === 1 && order.customer_id) {
+        const khata = db.prepare("SELECT * FROM khata_accounts WHERE customer_id = ?").get(order.customer_id) as any;
+        if (khata) {
+          const unpaidAmount = order.total_amount - order.amount_paid;
+          db.prepare("UPDATE khata_accounts SET current_balance = current_balance - ?, updated_at = ? WHERE id = ?").run(unpaidAmount, now, khata.id);
+
+          const txId = randomUUID();
+          db.prepare("INSERT INTO khata_transactions (id, khata_account_id, order_id, type, amount, notes, created_at) VALUES (?, ?, ?, 'credit', ?, ?, ?)").run(txId, khata.id, order.id, unpaidAmount, "Order refund", now);
+        }
+      }
+
+      db.prepare("UPDATE orders SET status = 'refunded' WHERE id = ?").run(id);
+    });
 
     return NextResponse.json({ success: true, message: "Order refunded successfully" });
   } catch (error: any) {

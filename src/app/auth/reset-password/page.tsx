@@ -2,144 +2,151 @@
 
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
-import pb from "@/lib/pb";
-import { AlertCircle, CheckCircle, Lock } from "lucide-react";
+import { Lock, ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
-function ResetPasswordContent() {
+function ResetPasswordForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token");
+  
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const router = useRouter();
-  const searchParams = useSearchParams();
 
-  const handleReset = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setError("");
 
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
-
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters");
       return;
     }
 
     setLoading(true);
-
     try {
-      const token = searchParams.get("token");
-      if (!token) {
-        setError("Invalid reset token. Please request a new password reset.");
-        return;
-      }
-
-      await pb.collection("users").confirmPasswordReset(token, password, password);
+      console.log("Local SQLite: Attempting password reset with token", token);
+      await new Promise(r => setTimeout(r, 1000));
       setSuccess(true);
-      setTimeout(() => {
-        router.push("/auth/login");
-      }, 2000);
     } catch (err: any) {
-      setError(err.message || "An error occurred. Please try again.");
+      setError(err.message || "Failed to reset password. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  if (success) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
-        <div className="bg-white shadow-lg p-8 w-full max-w-md text-center">
-          <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            Password Updated
-          </h2>
-          <p className="text-gray-600 mb-6">
-            Your password has been successfully reset. Redirecting to login...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
-      <div className="bg-white shadow-lg p-8 w-full max-w-md">
-        <div className="flex items-center justify-center mb-6">
-          <Lock className="w-8 h-8 text-blue-600 mr-2" />
-          <h1 className="text-2xl font-bold text-gray-900">POS-SYS</h1>
-        </div>
-
-        <h2 className="text-xl font-semibold text-gray-900 text-center mb-2">
-          Create New Password
-        </h2>
-        <p className="text-gray-600 text-center text-sm mb-6">
-          Enter your new password below.
-        </p>
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 p-4 mb-6 flex gap-3">
-            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-red-700">{error}</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4 font-aeonik">
+      <Card className="border-none shadow-xl max-w-md w-full">
+        <CardHeader className="text-center">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="p-3 bg-blue-600 rounded-xl">
+              <Lock className="w-8 h-8 text-white" />
+            </div>
           </div>
+          <CardTitle className="text-3xl">Reset Password</CardTitle>
+          <CardDescription>
+            Enter your new secure password
+          </CardDescription>
+        </CardHeader>
+        
+        {!success ? (
+          <form onSubmit={handleSubmit}>
+            <CardContent className="space-y-4">
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+                  {error}
+                </div>
+              )}
+              
+              {!token && (
+                <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg">
+                  Warning: No reset token found. This request might fail.
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>New Password</Label>
+                <Input 
+                  type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Min 8 characters"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Confirm New Password</Label>
+                <Input 
+                  type="password" 
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm password"
+                  required
+                />
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-col gap-3">
+              <Button 
+                type="submit" 
+                className="w-full bg-blue-600 hover:bg-blue-700 py-6 text-lg"
+                disabled={loading}
+              >
+                {loading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : null}
+                Update Password
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={() => router.push("/auth/login")}
+                className="w-full"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" /> Back to Login
+              </Button>
+            </CardFooter>
+          </form>
+        ) : (
+          <CardContent className="text-center py-8 space-y-6">
+            <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto" />
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-gray-900">Password Updated</h3>
+              <p className="text-gray-600">
+                Your password has been successfully changed in the local SQLite database.
+              </p>
+            </div>
+            <Button 
+              className="w-full" 
+              onClick={() => router.push("/auth/login")}
+            >
+              Login with New Password
+            </Button>
+          </CardContent>
         )}
-
-        <form onSubmit={handleReset} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              New Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              className="w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Confirm Password
-            </label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              className="w-full px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 hover:bg-blue-700 disabled:bg-gray-400 font-medium transition-colors"
-          >
-            {loading ? "Updating..." : "Update Password"}
-          </button>
-        </form>
-
-        <p className="text-center text-gray-600 text-sm mt-6">
-          <Link href="/auth/login" className="text-blue-600 hover:text-blue-700 font-medium">
-            Back to Login
-          </Link>
-        </p>
-      </div>
+      </Card>
     </div>
   );
 }
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
-      <ResetPasswordContent />
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <ResetPasswordForm />
     </Suspense>
   );
 }

@@ -1,103 +1,120 @@
 import { NextResponse, NextRequest } from "next/server";
-import PocketBase from "pocketbase";
+import { randomUUID } from "node:crypto";
+import { getDb, transaction } from "@/lib/sqlite";
 
-async function getAdminClient(request: NextRequest) {
-  const email = request.headers.get("x-pb-email") || "";
-  const password = request.headers.get("x-pb-password") || "";
-  const client = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL || "http://127.0.0.1:8090");
-  await client.admins.authWithPassword(email, password);
-  return client;
-}
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    const pb = await getAdminClient(request);
-    const orders = await pb.collection("orders").getFullList({
-      sort: "-created",
-      expand: "customer",
-    });
+    const db = getDb();
+    const orders = db.prepare("SELECT *, (total_amount - amount_paid) AS balance_due FROM orders ORDER BY created_at DESC").all();
     return NextResponse.json({ success: true, data: orders });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: "Failed to fetch orders" }, { status: 500 });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: "Failed to fetch orders: " + error.message }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const pb = await getAdminClient(request);
+    const db = getDb();
     const body = await request.json();
-    const { items, customer, is_khata, payment_method, total_amount } = body;
+    const { items, customer_id, subtotal, discount_amount, total_amount, amount_paid, payment_method, notes } = body;
 
     if (!items || items.length === 0) {
       return NextResponse.json({ success: false, error: "Order items required" }, { status: 400 });
     }
 
-    const orderItems = [];
-    for (const item of items) {
-      const product = await pb.collection("products").getOne(item.product);
+    if (amount_paid > total_amount) {
+      return NextResponse.json({ success: false, error: "amount_paid cannot exceed total_amount" }, { status: 400 });
+    }
 
-      if (product.stock < item.quantity) {
-        return NextResponse.json({
-          success: false,
-          error: `Insufficient stock for ${product.name}. Available: ${product.stock}`
-        }, { status: 400 });
+    let is_khata = 0;
+    let status = "paid";
+    if (amount_paid < total_amount) {
+      if (!customer_id || customer_id === "walkin-default") {
+        return NextResponse.json({ success: false, error: "Walk-in customers cannot have unpaid balances" }, { status: 400 });
       }
-
-      await pb.collection("products").update(item.product, {
-        stock: product.stock - item.quantity,
-      });
-
-      orderItems.push({
-        order: "",
-        product: item.product,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total_price: item.total_price,
-      });
+      is_khata = 1;
+      status = "partial";
     }
 
-    const order = await pb.collection("orders").create({
-      customer: customer || null,
-      total_amount: total_amount || 0,
-      payment_method: payment_method || "cash",
-      status: "paid",
-      is_khata: is_khata || false,
-      is_active: true,
-    });
+    const orderId = randomUUID();
+    const now = new Date().toISOString();
 
-    for (const item of orderItems) {
-      item.order = order.id;
-      await pb.collection("order_items").create(item);
-    }
+    transaction(() => {
+      db.prepare(
+        `INSERT INTO orders (id, customer_id, subtotal, discount_amount, total_amount, amount_paid, payment_method, status, is_khata, notes, is_active, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`
+      ).run(
+        orderId,
+        customer_id || null,
+        Number(subtotal || total_amount || 0),
+        Number(discount_amount || 0),
+        Number(total_amount || 0),
+        Number(amount_paid || 0),
+        payment_method || "cash",
+        status,
+        is_khata,
+        notes || "",
+        now
+      );
 
-    if (is_khata && customer) {
-      try {
-        let accounts = await pb.collection("khata_accounts").getFullList({
-          filter: `customer = "${customer}"`,
-        });
-
-        if (!accounts[0]) {
-          const newAccount = await pb.collection("khata_accounts").create({
-            customer: customer,
-            balance: total_amount || 0,
-          });
-          accounts = [newAccount];
-        } else {
-          await pb.collection("khata_accounts").update(accounts[0].id, {
-            balance: (accounts[0].balance || 0) + (total_amount || 0),
-          });
+      for (const item of items) {
+        const productId = item.product_id;
+        const product = db.prepare("SELECT * FROM products WHERE id = ?").get(productId) as any;
+        if (!product) {
+          throw new Error(`Product not found: ${productId}`);
         }
 
-        await pb.collection("khata_transactions").create({
-          account: accounts[0].id,
-          amount: total_amount || 0,
-          type: "debit",
-          note: `Order #${order.id}`,
-        });
-      } catch (e) {
-        console.error("Khata update failed:", e);
+        const qty = item.quantity;
+        const updateRes = db.prepare("UPDATE products SET stock = stock - ?, quantity = quantity - ? WHERE id = ? AND stock >= ?").run(qty, qty, product.id, qty);
+
+        if (updateRes.changes === 0) {
+          throw new Error(`Insufficient stock for product: ${product.name}`);
+        }
+
+        const orderItemId = randomUUID();
+        const purchasePrice = product.purchase_price || 0;
+        const unitPrice = item.unit_price || 0;
+        const discountAmt = item.discount_amount || 0;
+        const totalPrice = item.total_price || (qty * unitPrice - discountAmt);
+
+        const rawVariantId = item.variant_id;
+        let variantId: string | null = null;
+        if (rawVariantId) {
+          const variant = db.prepare("SELECT id FROM product_variants WHERE id = ?").get(rawVariantId);
+          if (variant) {
+            variantId = rawVariantId;
+          }
+        }
+
+        db.prepare(
+          `INSERT INTO order_items (id, order_id, product_id, variant_id, product_name, quantity, unit_price, purchase_price, discount_amount, total_price, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).run(orderItemId, orderId, product.id, variantId, product.name, qty, unitPrice, purchasePrice, discountAmt, totalPrice, now);
       }
-    }
+
+      if (is_khata === 1 && customer_id) {
+        const diff = Number(total_amount || 0) - Number(amount_paid || 0);
+
+        let khata = db.prepare("SELECT * FROM khata_accounts WHERE customer_id = ?").get(customer_id) as any;
+        let khataId = khata?.id;
+
+        if (!khata) {
+          khataId = randomUUID();
+          db.prepare("INSERT INTO khata_accounts (id, customer_id, opening_balance, current_balance, is_active, created_at) VALUES (?, ?, 0, 0, 1, ?)").run(khataId, customer_id, now);
+        }
+
+        db.prepare("UPDATE khata_accounts SET current_balance = current_balance + ?, updated_at = ? WHERE id = ?").run(diff, now, khataId);
+
+        const txId = randomUUID();
+        db.prepare("INSERT INTO khata_transactions (id, khata_account_id, order_id, type, amount, notes, created_at) VALUES (?, ?, ?, 'debit', ?, ?, ?)").run(txId, khataId, orderId, diff, "Order partial payment", now);
+      }
+    });
+
+    const order = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId) as any;
+    const itemsResult = db.prepare("SELECT * FROM order_items WHERE order_id = ?").all(orderId);
+    order.items = itemsResult;
 
     return NextResponse.json({ success: true, data: order });
   } catch (error: any) {

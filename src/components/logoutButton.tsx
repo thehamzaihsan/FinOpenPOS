@@ -3,9 +3,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useFormStatus } from "react-dom";
 import { logout } from "@/app/auth/actions";
-import pb from "@/lib/pb";
 import { Button } from "@/components/ui/button";
 import { Loader2Icon } from "lucide-react";
 
@@ -17,9 +15,10 @@ export function LogoutButton() {
   const handleLogout = async () => {
     setIsLoading(true);
     setError(null);
-
-    pb.authStore.clear();
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
     if (typeof window !== "undefined") {
+      localStorage.removeItem("pb_admin_email");
+      localStorage.removeItem("pb_admin_password");
       localStorage.removeItem("pb_auth");
     }
     const result = await logout();

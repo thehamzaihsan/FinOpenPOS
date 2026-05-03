@@ -1,32 +1,22 @@
 import { NextResponse } from "next/server";
-import PocketBase from "pocketbase";
-import { ensureCollections } from "@/lib/ensure-collections";
+import { getDb } from "@/lib/sqlite";
 
 export const dynamic = "force-dynamic";
-
-const PB_URL = process.env.NEXT_PUBLIC_POCKETBASE_URL || "http://127.0.0.1:8090";
-const ADMIN_EMAIL = "admin@possys.com";
-const ADMIN_PASSWORD = "PosSys@123456";
-
-async function getAdminClient() {
-  const pb = new PocketBase(PB_URL);
-  try {
-    await pb.admins.authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
-  } catch {
-    const res = await pb.send("/api/admins/auth-with-password", {
-      method: "POST",
-      body: { identity: ADMIN_EMAIL, password: ADMIN_PASSWORD },
-    });
-    pb.authStore.save(res.token, res.admin);
-  }
-  return pb;
-}
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const pb = await getAdminClient();
-    const customer = await pb.collection("customers").getOne(id);
+    const db = getDb();
+    const customer = db.prepare("SELECT * FROM customers WHERE id = ?").get(id) as any;
+    if (!customer) throw new Error("not found");
+    
+    const khata = db.prepare("SELECT * FROM khata_accounts WHERE customer_id = ?").get(id) as any;
+    if (khata) {
+      customer.khata_balance = khata.current_balance;
+    } else {
+      customer.khata_balance = 0;
+    }
+    
     return NextResponse.json({ success: true, data: customer });
   } catch (error) {
     return NextResponse.json({ success: false, error: "Customer not found" }, { status: 404 });
@@ -36,9 +26,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const pb = await getAdminClient();
+    const db = getDb();
     const body = await request.json();
-    const customer = await pb.collection("customers").update(id, body);
+    const existing = db.prepare("SELECT * FROM customers WHERE id = ?").get(id) as any;
+    if (!existing) return NextResponse.json({ success: false, error: "Customer not found" }, { status: 404 });
+    db.prepare("UPDATE customers SET name = ?, phone = ?, address = ?, type = ?, is_active = ? WHERE id = ?").run(
+      body.name ?? existing.name,
+      body.phone ?? existing.phone,
+      body.address ?? existing.address,
+      body.type ?? existing.type,
+      body.is_active === undefined ? existing.is_active : (body.is_active ? 1 : 0),
+      id
+    );
+    const customer = db.prepare("SELECT * FROM customers WHERE id = ?").get(id);
     return NextResponse.json({ success: true, data: customer });
   } catch (error) {
     return NextResponse.json({ success: false, error: "Failed to update customer" }, { status: 500 });
@@ -48,8 +48,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const pb = await getAdminClient();
-    await pb.collection("customers").update(id, { is_active: false });
+    const db = getDb();
+    db.prepare("UPDATE customers SET is_active = 0 WHERE id = ?").run(id);
     return NextResponse.json({ success: true, message: "Customer deleted" });
   } catch (error) {
     return NextResponse.json({ success: false, error: "Failed to delete customer" }, { status: 500 });

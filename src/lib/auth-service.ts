@@ -1,10 +1,16 @@
-import pb from './pb';
-
 export class AuthService {
   async login(email: string, password: string) {
     try {
-      const authData = await pb.collection('users').authWithPassword(email, password);
-      return { data: authData, error: null };
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        return { data: null, error: data?.error || "Failed to login" };
+      }
+      return { data: data.data, error: null };
     } catch (error: any) {
       console.error('Login error:', error);
       return { data: null, error: error.message || 'Failed to login' };
@@ -12,25 +18,24 @@ export class AuthService {
   }
 
   async logout() {
-    pb.authStore.clear();
-    // In Tauri, we might want to do additional cleanup
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
   }
 
   async getSession() {
-    return pb.authStore.model;
+    const res = await fetch("/api/profile", { cache: "no-store" }).catch(() => null);
+    if (!res || !res.ok) return null;
+    const json = await res.json();
+    return json?.data || null;
   }
 
   async isAdmin() {
-    const user = pb.authStore.model;
+    const user: any = await this.getSession();
     if (!user) return false;
-    
-    // Check if user has admin role or is in admin_users collection
-    // In PocketBase, you can have a field 'role' on users
     return user.role === 'admin' || user.is_admin === true;
   }
 
   isAuthenticated() {
-    return pb.authStore.isValid;
+    return !!(typeof window !== "undefined" && localStorage.getItem("pos_session"));
   }
 }
 
