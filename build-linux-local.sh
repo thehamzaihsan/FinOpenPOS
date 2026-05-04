@@ -29,7 +29,7 @@ if ! command -v node &> /dev/null; then
     echo -e "${RED}❌ Node.js not found${NC}"
     exit 1
 fi
-echo -e "${GREEN}✅ Node.js$(node --version)${NC}"
+echo -e "${GREEN}✅ Node.js $(node --version)${NC}"
 
 # Check npm
 if ! command -v npm &> /dev/null; then
@@ -53,24 +53,51 @@ echo ""
 
 MISSING_DEPS=""
 
+# Check for libgtk-3-dev
 if ! dpkg-query -W libgtk-3-dev &> /dev/null; then
     MISSING_DEPS="$MISSING_DEPS libgtk-3-dev"
 fi
 
-if ! dpkg-query -W libwebkit2gtk-4.0-dev &> /dev/null; then
-    MISSING_DEPS="$MISSING_DEPS libwebkit2gtk-4.0-dev"
+# Check for webkit2gtk (try 4.1 first, fallback to 4.0)
+if ! dpkg-query -W libwebkit2gtk-4.1-dev &> /dev/null && ! dpkg-query -W libwebkit2gtk-4.0-dev &> /dev/null; then
+    if apt-cache show libwebkit2gtk-4.1-dev &> /dev/null; then
+        MISSING_DEPS="$MISSING_DEPS libwebkit2gtk-4.1-dev"
+    elif apt-cache show libwebkit2gtk-4.0-dev &> /dev/null; then
+        MISSING_DEPS="$MISSING_DEPS libwebkit2gtk-4.0-dev"
+    else
+        echo -e "${RED}❌ No compatible libwebkit2gtk found in apt repos!${NC}"
+        echo "You may need to add a PPA or upgrade your distro."
+        exit 1
+    fi
 fi
 
-if ! dpkg-query -W libappindicator3-dev &> /dev/null; then
-    MISSING_DEPS="$MISSING_DEPS libappindicator3-dev"
+# Check for appindicator (handle both old and new package names)
+if ! dpkg-query -W libayatana-appindicator3-dev &> /dev/null && ! dpkg-query -W libappindicator3-dev &> /dev/null; then
+    if apt-cache show libayatana-appindicator3-dev &> /dev/null; then
+        MISSING_DEPS="$MISSING_DEPS libayatana-appindicator3-dev"
+    else
+        MISSING_DEPS="$MISSING_DEPS libappindicator3-dev"
+    fi
 fi
 
+# Check for librsvg2-dev
 if ! dpkg-query -W librsvg2-dev &> /dev/null; then
     MISSING_DEPS="$MISSING_DEPS librsvg2-dev"
 fi
 
+# Check for patchelf
 if ! dpkg-query -W patchelf &> /dev/null; then
     MISSING_DEPS="$MISSING_DEPS patchelf"
+fi
+
+# Check for libssl-dev (required by Tauri)
+if ! dpkg-query -W libssl-dev &> /dev/null; then
+    MISSING_DEPS="$MISSING_DEPS libssl-dev"
+fi
+
+# Check for libxdo-dev (required by Tauri)
+if ! dpkg-query -W libxdo-dev &> /dev/null; then
+    MISSING_DEPS="$MISSING_DEPS libxdo-dev"
 fi
 
 if [ -n "$MISSING_DEPS" ]; then
