@@ -104,12 +104,11 @@ if [ -n "$MISSING_DEPS" ]; then
     echo -e "${YELLOW}⚠️  Missing system dependencies:$MISSING_DEPS${NC}"
     echo ""
     echo "Install with:"
-    echo -e "${BLUE}sudo apt-get update && sudo apt-get install -y$MISSING_DEPS${NC}"
+    echo -e "${BLUE}sudo apt-get install -y$MISSING_DEPS${NC}"
     echo ""
     read -p "Do you want to install them now? (y/n) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        sudo apt-get update
         sudo apt-get install -y $MISSING_DEPS
     else
         echo -e "${RED}❌ Cannot proceed without system dependencies${NC}"
