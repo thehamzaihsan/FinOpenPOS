@@ -134,7 +134,7 @@ fi
 echo ""
 
 # Step 2: Build Next.js
-echo -e "${BLUE}🔨 Step 2: Building Next.js frontend${NC}"
+echo -e "${BLUE}🔨 Step 2: Building Next.js frontend (standalone mode)${NC}"
 if npm run build; then
     echo -e "${GREEN}✅ Next.js build completed${NC}"
 else
