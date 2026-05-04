@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { dataService } from "@/lib/data-service";
-import { Plus, Edit2, Search, Trash2, Zap, Loader2 } from "lucide-react";
+import { Plus, Edit2, Search, Trash2, Zap, Loader2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { downloadFile } from "@/lib/utils";
 
 export default function DealsPage() {
   const [deals, setDeals] = useState<any[]>([]);
@@ -45,11 +46,19 @@ export default function DealsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Deals & Offers</h1>
           <p className="text-gray-600">Manage promotional bundles and discounts</p>
         </div>
-        <Link href="/app/deals/new">
-          <Button className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="w-4 h-4 mr-2" /> New Deal
+        <div className="flex gap-3">
+          <Button 
+            variant="outline"
+            onClick={() => downloadFile("/api/export?type=deals&format=csv")}
+          >
+            <Download className="w-4 h-4 mr-2" /> Export CSV
           </Button>
-        </Link>
+          <Link href="/app/deals/new">
+            <Button className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="w-4 h-4 mr-2" /> New Deal
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="bg-white border rounded-xl shadow-sm overflow-hidden">

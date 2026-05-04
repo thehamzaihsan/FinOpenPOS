@@ -48,16 +48,17 @@ export async function GET(request: NextRequest) {
           ORDER BY p.name ASC
         `).all() as any[];
 
-        if (products.length === 0) {
-          return NextResponse.json({ success: false, error: "No products found" }, { status: 404 });
-        }
-
-        const headers = Object.keys(products[0]);
-        csv = headers.map(escapeCsv).join(",") + "\n";
-        for (const row of products) {
-          csv += headers.map(h => escapeCsv(row[h])).join(",") + "\n";
-        }
         filename = `products_export_${new Date().toISOString().slice(0, 10)}.csv`;
+        
+        if (products.length > 0) {
+          const headers = Object.keys(products[0]);
+          csv = headers.map(escapeCsv).join(",") + "\n";
+          for (const row of products) {
+            csv += headers.map(h => escapeCsv(row[h])).join(",") + "\n";
+          }
+        } else {
+          csv = "id,Product Name,Item Code,SKU,Category,Description,Purchase Price,Sale Price,Current Price,Stock,Quantity,Min Stock,Unit,Min Discount (%),Max Discount (%),Active,Created At\n";
+        }
         break;
       }
 
@@ -81,16 +82,17 @@ export async function GET(request: NextRequest) {
           ORDER BY c.name ASC
         `).all() as any[];
 
-        if (customers.length === 0) {
-          return NextResponse.json({ success: false, error: "No customers found" }, { status: 404 });
-        }
-
-        const headers = Object.keys(customers[0]);
-        csv = headers.map(escapeCsv).join(",") + "\n";
-        for (const row of customers) {
-          csv += headers.map(h => escapeCsv(row[h])).join(",") + "\n";
-        }
         filename = `customers_export_${new Date().toISOString().slice(0, 10)}.csv`;
+
+        if (customers.length > 0) {
+          const headers = Object.keys(customers[0]);
+          csv = headers.map(escapeCsv).join(",") + "\n";
+          for (const row of customers) {
+            csv += headers.map(h => escapeCsv(row[h])).join(",") + "\n";
+          }
+        } else {
+          csv = "id,Customer Name,Phone,Address,Type,Active,Created At,Khata Balance,Opening Balance,Total Orders,Total Spent\n";
+        }
         break;
       }
 
@@ -115,16 +117,17 @@ export async function GET(request: NextRequest) {
           ORDER BY o.created_at DESC
         `).all() as any[];
 
-        if (orders.length === 0) {
-          return NextResponse.json({ success: false, error: "No orders found" }, { status: 404 });
-        }
-
-        const headers = Object.keys(orders[0]);
-        csv = headers.map(escapeCsv).join(",") + "\n";
-        for (const row of orders) {
-          csv += headers.map(h => escapeCsv(row[h])).join(",") + "\n";
-        }
         filename = `orders_export_${new Date().toISOString().slice(0, 10)}.csv`;
+
+        if (orders.length > 0) {
+          const headers = Object.keys(orders[0]);
+          csv = headers.map(escapeCsv).join(",") + "\n";
+          for (const row of orders) {
+            csv += headers.map(h => escapeCsv(row[h])).join(",") + "\n";
+          }
+        } else {
+          csv = "Order ID,Customer,Total Amount,Amount Paid,Balance Due,Status,Payment Method,Discount,Subtotal,On Khata,Notes,Date\n";
+        }
         break;
       }
 
@@ -148,16 +151,17 @@ export async function GET(request: NextRequest) {
           ORDER BY o.created_at DESC
         `).all() as any[];
 
-        if (items.length === 0) {
-          return NextResponse.json({ success: false, error: "No order items found" }, { status: 404 });
-        }
-
-        const headers = Object.keys(items[0]);
-        csv = headers.map(escapeCsv).join(",") + "\n";
-        for (const row of items) {
-          csv += headers.map(h => escapeCsv(row[h])).join(",") + "\n";
-        }
         filename = `order_items_export_${new Date().toISOString().slice(0, 10)}.csv`;
+
+        if (items.length > 0) {
+          const headers = Object.keys(items[0]);
+          csv = headers.map(escapeCsv).join(",") + "\n";
+          for (const row of items) {
+            csv += headers.map(h => escapeCsv(row[h])).join(",") + "\n";
+          }
+        } else {
+          csv = "Order ID,Customer,Product,Qty,Unit Price,Purchase Price,Discount,Line Total,Profit,Date\n";
+        }
         break;
       }
 
@@ -177,16 +181,17 @@ export async function GET(request: NextRequest) {
           ORDER BY d.created_at DESC
         `).all() as any[];
 
-        if (deals.length === 0) {
-          return NextResponse.json({ success: false, error: "No deals found" }, { status: 404 });
-        }
-
-        const headers = Object.keys(deals[0]);
-        csv = headers.map(escapeCsv).join(",") + "\n";
-        for (const row of deals) {
-          csv += headers.map(h => escapeCsv(row[h])).join(",") + "\n";
-        }
         filename = `deals_export_${new Date().toISOString().slice(0, 10)}.csv`;
+
+        if (deals.length > 0) {
+          const headers = Object.keys(deals[0]);
+          csv = headers.map(escapeCsv).join(",") + "\n";
+          for (const row of deals) {
+            csv += headers.map(h => escapeCsv(row[h])).join(",") + "\n";
+          }
+        } else {
+          csv = "id,Deal Name,Description,Price,Active,Created At,Items Count,Products\n";
+        }
         break;
       }
 
@@ -203,16 +208,17 @@ export async function GET(request: NextRequest) {
           ORDER BY e.created_at DESC
         `).all() as any[];
 
-        if (expenses.length === 0) {
-          return NextResponse.json({ success: false, error: "No expenses found" }, { status: 404 });
-        }
-
-        const headers = Object.keys(expenses[0]);
-        csv = headers.map(escapeCsv).join(",") + "\n";
-        for (const row of expenses) {
-          csv += headers.map(h => escapeCsv(row[h])).join(",") + "\n";
-        }
         filename = `expenses_export_${new Date().toISOString().slice(0, 10)}.csv`;
+
+        if (expenses.length > 0) {
+          const headers = Object.keys(expenses[0]);
+          csv = headers.map(escapeCsv).join(",") + "\n";
+          for (const row of expenses) {
+            csv += headers.map(h => escapeCsv(row[h])).join(",") + "\n";
+          }
+        } else {
+          csv = "id,Title,Category,Amount,Notes,Date\n";
+        }
         break;
       }
 
@@ -233,16 +239,17 @@ export async function GET(request: NextRequest) {
           ORDER BY k.current_balance DESC
         `).all() as any[];
 
-        if (khata.length === 0) {
-          return NextResponse.json({ success: false, error: "No khata records found" }, { status: 404 });
-        }
-
-        const headers = Object.keys(khata[0]);
-        csv = headers.map(escapeCsv).join(",") + "\n";
-        for (const row of khata) {
-          csv += headers.map(h => escapeCsv(row[h])).join(",") + "\n";
-        }
         filename = `khata_export_${new Date().toISOString().slice(0, 10)}.csv`;
+
+        if (khata.length > 0) {
+          const headers = Object.keys(khata[0]);
+          csv = headers.map(escapeCsv).join(",") + "\n";
+          for (const row of khata) {
+            csv += headers.map(h => escapeCsv(row[h])).join(",") + "\n";
+          }
+        } else {
+          csv = "Customer,Phone,Address,Opening Balance,Current Balance,Account Created,Last Updated,Transactions\n";
+        }
         break;
       }
 

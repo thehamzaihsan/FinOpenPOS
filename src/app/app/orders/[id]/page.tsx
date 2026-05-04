@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Printer, Download, AlertCircle } from "lucide-react";
+import { downloadFile } from "@/lib/utils";
 import Link from "next/link";
 
 interface Order {
@@ -323,13 +324,19 @@ const response = await fetch(`/api/orders/${orderId}`, {
        </button>
       )}
 
-      <button className="w-full border-2 border-blue-600 text-blue-600 py-2 hover:bg-blue-50 transition-colors font-medium flex items-center justify-center gap-2">
+      <button 
+        onClick={() => downloadFile(`/api/orders/${order.id}/print`)}
+        className="w-full border-2 border-blue-600 text-blue-600 py-2 hover:bg-blue-50 transition-colors font-medium flex items-center justify-center gap-2"
+      >
        <Printer className="w-4 h-4" />
        Print Thermal
       </button>
 
       {order.customers && (
-       <button className="w-full border-2 border-green-600 text-green-600 py-2 hover:bg-green-50 transition-colors font-medium flex items-center justify-center gap-2">
+       <button 
+        onClick={() => downloadFile(`/api/orders/${order.id}/invoice`)}
+        className="w-full border-2 border-green-600 text-green-600 py-2 hover:bg-green-50 transition-colors font-medium flex items-center justify-center gap-2"
+       >
         <Download className="w-4 h-4" />
         Full Invoice
        </button>
