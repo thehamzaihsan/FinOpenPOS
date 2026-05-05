@@ -4,9 +4,15 @@ const nextConfig = {
         unoptimized: true,
     },
     turbopack: {},
-    // API routes are only available in dev/server mode, not in static export
-    // For production desktop builds, configure your frontend without API routes
-    // or build in dev mode
+    webpack: (config, { isServer }) => {
+        if (isServer) {
+            // Mark node:sqlite as external so it's not bundled at build time
+            config.externals.push({
+                'node:sqlite': 'commonjs node:sqlite',
+            });
+        }
+        return config;
+    },
 };
 
 export default nextConfig;
