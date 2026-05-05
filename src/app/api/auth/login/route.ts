@@ -1,4 +1,3 @@
-export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { loginUser, upsertUser } from "@/lib/sqlite";
 

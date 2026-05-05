@@ -1,4 +1,3 @@
-export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { getDb, transaction } from "@/lib/sqlite";
 import { randomUUID } from "node:crypto";
